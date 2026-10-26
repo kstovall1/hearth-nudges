@@ -1,0 +1,28 @@
+# Databricks
+.databricks/
+.bundle/
+*.databrickscfg
+
+# Secrets and local config
+.env
+.env.*
+*.pem
+*.key
+secrets/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+*.egg-info/
+
+# Node (app frontend)
+node_modules/
+dist/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
