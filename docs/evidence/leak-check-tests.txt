@@ -1,0 +1,87 @@
+# Leak check tests, 2026-10-28
+# Real output from git commit in a scratch clone, through the managed Databricks pre-commit.
+# Inputs are fake values. Output shows only redacted values.
+# python3: Python 3.13.11
+
+# Should block
+
+## Workspace host
+$ git commit  (exit 1)
+leak-check: blocked. Remove these, or add 'leak-check: allow' to a line that is a false positive:
+  a.md:1: workspace_host: acm************************com
+
+## UUID
+$ git commit  (exit 1)
+leak-check: blocked. Remove these, or add 'leak-check: allow' to a line that is a false positive:
+  a.md:1: uuid: 000******************************444
+
+## Databricks token
+$ git commit  (exit 1)
+leak-check: blocked. Remove these, or add 'leak-check: allow' to a line that is a false positive:
+  a.md:1: databricks_token: dap******************************def
+
+## Warehouse ID next to a warehouse mention
+$ git commit  (exit 1)
+leak-check: blocked. Remove these, or add 'leak-check: allow' to a line that is a false positive:
+  a.md:1: warehouse_id: war************************def
+
+## Databricks email
+$ git commit  (exit 1)
+leak-check: blocked. Remove these, or add 'leak-check: allow' to a line that is a false positive:
+  a.md:1: databricks_email: som****************com
+
+## Slack archive link
+$ git commit  (exit 1)
+leak-check: blocked. Remove these, or add 'leak-check: allow' to a line that is a false positive:
+  a.md:1: slack_link: acm***************************123
+
+## Google Docs link
+$ git commit  (exit 1)
+leak-check: blocked. Remove these, or add 'leak-check: allow' to a line that is a false positive:
+  a.md:1: google_doc_link: doc****************************123
+
+## go/ link
+$ git commit  (exit 1)
+leak-check: blocked. Remove these, or add 'leak-check: allow' to a line that is a false positive:
+  a.md:1: go_link: go/******ink
+
+## Denylist value, different case
+$ git commit  (exit 1)
+leak-check: blocked. Remove these, or add 'leak-check: allow' to a line that is a false positive:
+  a.md:1: denylist: HEA*************lue
+
+## Force-added CLAUDE.local.md, empty
+$ git commit  (exit 1)
+leak-check: blocked. Remove these, or add 'leak-check: allow' to a line that is a false positive:
+  CLAUDE.local.md: this file must never be committed
+
+## Force-added file under .local/
+$ git commit  (exit 1)
+leak-check: blocked. Remove these, or add 'leak-check: allow' to a line that is a false positive:
+  .local/notes.txt: this file must never be committed
+
+# Should pass
+
+## Clean file
+$ git commit  (exit 0)
+(passed leak-check)
+
+## Intentional names from AGENTS.md
+$ git commit  (exit 0)
+(passed leak-check)
+
+## 16 hex characters with no warehouse mention (a git hash)
+$ git commit  (exit 0)
+(passed leak-check)
+
+## /go/ inside a URL path
+$ git commit  (exit 0)
+(passed leak-check)
+
+## Allow marker on a false positive
+$ git commit  (exit 0)
+(passed leak-check)
+
+# Audit of every tracked file plus the new ones, with the real denylist
+$ scripts/check_leaks.py $(git ls-files) scripts/*
+(exit 0)

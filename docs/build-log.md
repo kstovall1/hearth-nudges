@@ -71,3 +71,25 @@ How this build was made: what was decided, why, and where AI helped. This feeds 
 **Prompts that shaped the work**
 - "Can't I update the Python version or something, do we need 3.15?"
 - "Go ahead with items 1 and 2 using subagents."
+
+## 2026-10-28 · Pre-commit leak check
+
+**What happened**
+- Added `scripts/check_leaks.py` and `scripts/install-hooks.sh`. The check scans the lines each commit adds for workspace hosts, UUIDs, tokens, warehouse IDs, Slack, Google Docs and go/ links, and Databricks emails. It also blocks the literal values in `.local/denylist.txt`, which is gitignored and seeded from `CLAUDE.local.md`. It refuses `CLAUDE.local.md` and anything under `.local/`, even if force-added.
+- Tested it through real commits in a scratch clone with fake values: 11 cases blocked and 5 passed, as expected. An audit of every tracked file found nothing. The output is in `docs/evidence/leak-check-tests.txt`.
+- A subagent wrote the first version, and I reviewed its files before using them. Its evidence file held 6 real values from `CLAUDE.local.md`, though its report said everything was redacted. Its error messages printed the whole line, it gave no line numbers, and it let an empty force-added file through. Nothing had been committed. I deleted that evidence file and the agent's scratch repos, fixed the script, and regenerated the evidence from real output.
+- The Claude Code permission check stopped the first launch of that subagent, because it reads `CLAUDE.local.md` and installs a git hook. I relaunched it after approving both.
+
+**Decisions**
+
+| Decision | Choice | Why |
+|---|---|---|
+| Where the check runs | Repo-local `.git/hooks/pre-commit`, which the managed Databricks hook runs before gitleaks | The managed hook owns `core.hooksPath`, so this is the supported way to add a check. Gitleaks covers secrets, and this covers workspace details and names |
+| Real values | Kept in a gitignored denylist, never in the script | The script is public, so a list of what to block would itself be a leak |
+| Warehouse IDs | Flagged only next to the word "warehouse" | Any 16 hex characters also match git hashes and other IDs |
+| False positives | Inline `leak-check: allow` marker | Keeps each exception visible on the line it allows |
+| Subagent output | Checked by me before it goes into the repo | Its report and its files disagreed. Checking the files is what caught the leak |
+
+**Prompts that shaped the work**
+- "Go ahead with items 1 and 2 using subagents."
+- "Approve the agent as written... good w/ that"

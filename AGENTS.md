@@ -118,7 +118,7 @@ Internal details (workspace URL, resource IDs, FE Bar scoring and rules, interna
 - [ ] Synthetic data generator writing daily files to the UC Volume
 - [ ] SDP pipeline bronze → silver → gold with expectations
 - [ ] UC setup: schemas, PII masks, tags, grants (`hearth_marketing` and `hearth_pii_readers` account groups already exist)
-- [ ] Pre-commit check for workspace URLs, tokens and real names
+- [x] Pre-commit check for workspace URLs, tokens and real names
 - [ ] Commit pipeline run outputs as text
 
 ### Phase 2, intelligence and serving (11/3 to 11/9)
@@ -170,6 +170,6 @@ Internal details (workspace URL, resource IDs, FE Bar scoring and rules, interna
 
 - **Synthetic data and the fictional Hearth brand only.** Never name real companies, customers or people, and never commit workspace URLs, IDs, tokens or real data.
 - **Don't use Solution Builder** or anything from it.
-- **Commits.** The agent stages changes and drafts a Conventional Commit message. Katie reviews and commits as `kstovall1`. The Databricks git hooks crash on Python 3.15. `~/.zshrc` defaults `python3` to 3.13, so plain `git commit` and `git push` work. Check `gh auth status` shows `kstovall1` before pushing.
+- **Commits.** The agent commits with a Conventional Commit message and pushes when a piece of work is done and verified, without asking first. Commits are authored as `kstovall1`. The Databricks git hooks crash on Python 3.15. `~/.zshrc` defaults `python3` to 3.13, so plain `git commit` and `git push` work. After cloning, run `scripts/install-hooks.sh` so commits run `scripts/check_leaks.py`, and keep the real values it blocks in the gitignored `.local/denylist.txt`. Check `gh auth status` shows `kstovall1` before pushing.
 - **Log every working session** in `docs/build-log.md`: what changed, decisions and why, and the prompts that shaped the work.
 - **Writing style.** Plain, short sentences. No em dashes or en dashes. No hype.
