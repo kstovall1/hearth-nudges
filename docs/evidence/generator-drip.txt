@@ -1,0 +1,29 @@
+# Drip run, 2026-10-28
+# Real output. Job run with mode=drip after the full run, then a second drip run.
+
+$ databricks bundle run hearth_generate_data --params mode=drip
+2026-10-28 12:47:51 "hearth-generate-data" RUNNING
+2026-10-28 12:49:14 "hearth-generate-data" TERMINATED SUCCESS
+drip: simulating 1 days from 2026-10-27, seed 7
+  sessions: 18,722 rows
+  away: 14,205 rows
+  decisions: 10,386 rows
+  notifications: 8,573 rows
+  subscriptions: 564 rows
+  truth: 10,386 rows
+  all_members: 75,283 rows
+  members: 121 rows
+Landed 2026-10-27 to 2026-10-27 in /Volumes/katie_febar_catalog/hearth_raw/landing
+
+## Rows in the new dt=2026-10-27 folders
+
+entity                  rows
+members                 121
+app_events              188820
+notification_decisions  10386
+notification_events     8661
+subscription_events     564
+
+$ databricks bundle run hearth_generate_data --params mode=drip   # again, same day
+2026-10-28 12:50:11 "hearth-generate-data" TERMINATED SUCCESS
+Nothing to add: the data already reaches 2026-10-27.

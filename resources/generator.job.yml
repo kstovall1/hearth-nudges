@@ -1,0 +1,35 @@
+# One-time job that writes Hearth's raw files. Separate from the main pipeline job.
+# Full history:  databricks bundle run hearth_generate_data
+# Add a day:     databricks bundle run hearth_generate_data --params mode=drip
+resources:
+  jobs:
+    hearth_generate_data:
+      name: hearth-generate-data
+      parameters:
+        - name: mode
+          default: full
+        - name: days
+          default: "1"
+        - name: seed
+          default: "7"
+        - name: end_date
+          default: ""
+      tasks:
+        - task_key: generate
+          environment_key: generator
+          python_wheel_task:
+            package_name: hearth_data
+            entry_point: hearth-generate
+            named_parameters:
+              catalog: ${var.catalog}
+              mode: "{{job.parameters.mode}}"
+              days: "{{job.parameters.days}}"
+              seed: "{{job.parameters.seed}}"
+              end_date: "{{job.parameters.end_date}}"
+      environments:
+        - environment_key: generator
+          spec:
+            environment_version: "4"
+            dependencies:
+              - faker>=24
+              - ../dist/*.whl

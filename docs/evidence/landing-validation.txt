@@ -1,0 +1,99 @@
+# Landing validation, 2026-10-28
+# Real output of: uv run python scripts/validate_landing.py
+# Run against the files the generator job landed (full mode, seed 7, window 2026-08-28 to 2026-10-26).
+
+## Rows, days and files per entity
+
+entity                  rows      days  first_dt    last_dt     files
+members                 75162     60    2026-08-28  2026-10-26  60
+app_events              11012232  60    2026-08-28  2026-10-26  60
+notification_decisions  1394374   60    2026-08-28  2026-10-26  60
+notification_events     1336081   60    2026-08-28  2026-10-26  60
+subscription_events     26589     60    2026-08-28  2026-10-26  60
+
+## Bad rows in app_events, as a percent of all rows
+
+rows      pct_null_member  pct_duplicate_event_id  pct_future_ts  pct_unknown_type  first_dt_with_app_version  last_dt_without_app_version
+11012232  0.297            0.985                   0.099          0.196             2026-10-06                 2026-10-05
+
+## app_events by type
+
+event_type        rows
+profile_view      4131367
+like_sent         1446867
+like_received     1139005
+session_end       1115441
+session_start     1115429
+message_sent      1077677
+message_received  783906
+match_created     180950
+screen_view       7253
+SESSION_START     7210
+ad_impression     7127
+
+## Decisions by campaign and arm
+
+campaign_type  arm        rows    with_send_ts
+blast          treatment  711947  711947
+nudge_test     holdout    102855  0
+nudge_test     treatment  579572  579572
+
+## Blasts per week, before and after the incident
+
+week                      blasts  decisions
+2026-08-24T00:00:00.000Z  1       47656
+2026-08-31T00:00:00.000Z  1       47236
+2026-09-07T00:00:00.000Z  1       46598
+2026-09-14T00:00:00.000Z  1       46042
+2026-09-21T00:00:00.000Z  1       45330
+2026-09-28T00:00:00.000Z  2       88737
+2026-10-05T00:00:00.000Z  3       127101
+2026-10-12T00:00:00.000Z  3       118147
+2026-10-19T00:00:00.000Z  3       109977
+2026-10-26T00:00:00.000Z  1       35123
+
+## Push callbacks by type
+
+event_type     rows     distinct_ids
+delivered      1263293  1250772
+opened         53508    52981
+push_disabled  15420    15265
+uninstalled    3860     3829
+
+## Orphans: rows whose parent is missing
+
+check                                            rows
+decisions without a member                       0
+callbacks without a decision                     0
+app events without a member (null ids excluded)  0
+
+## Fake PII shape
+
+email_domain  members  phones_in_555_01xx
+example.com   25035    25035
+example.net   25123    25123
+example.org   25004    25004
+
+## Members by plan and push opt-in
+
+plan     pct_members  pct_push_opt_in
+free     84.1         71.4
+plus     11.5         69.6
+premium  4.5          71.9
+
+## Subscription events
+
+event_type   plan     rows   min_price  max_price
+cancel       plus     1271
+cancel       premium  387
+renew        plus     16061  29.99      29.99
+renew        premium  6234   49.99      49.99
+trial_start  plus     508    0.0        0.0
+upgrade      plus     1590   29.99      29.99
+upgrade      premium  538    49.99      49.99
+
+## Generator truth against nudge test decisions
+
+truth_rows  test_decisions
+682427      682427
+

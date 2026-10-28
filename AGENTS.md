@@ -64,6 +64,8 @@ flowchart LR
 | `AGENTS.md` | This file. Goals, architecture, plan, status, conventions |
 | `docs/data-design.md` | Synthetic data design, planted patterns, governance |
 | `docs/build-log.md` | **The one record of decisions and trade-offs**, plus how AI was used, session by session |
+| `src/hearth_data/` | The synthetic data generator, built as a wheel and run by `resources/generator.job.yml` |
+| `docs/evidence/` | Run output committed as text: deploys, checks, pipeline runs |
 | `README.md` | Written in phase 4. Business outcome first, then architecture, run evidence, decisions and how AI was used |
 
 Decisions are recorded only in `docs/build-log.md`. Don't copy them elsewhere.
@@ -115,7 +117,7 @@ Internal details (workspace URL, resource IDs, FE Bar scoring and rules, interna
 - [x] Draft the synthetic data design (`docs/data-design.md`)
 - [x] Answer the open questions in the data design
 - [x] Bundle skeleton (`databricks.yml`, target using the `fevm-katie-febar` profile)
-- [ ] Synthetic data generator writing daily files to the UC Volume
+- [x] Synthetic data generator writing daily files to the UC Volume
 - [ ] SDP pipeline bronze → silver → gold with expectations
 - [ ] UC setup: schemas, PII masks, tags, grants (`hearth_marketing` and `hearth_pii_readers` account groups already exist)
 - [x] Pre-commit check for workspace URLs, tokens and real names

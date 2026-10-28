@@ -1,0 +1,9 @@
+# Simulation state for drip mode and the last run's intermediate files. Not read by the pipeline.
+resources:
+  volumes:
+    generator:
+      catalog_name: ${var.catalog}
+      schema_name: ${resources.schemas.hearth_raw.name}
+      name: generator
+      volume_type: MANAGED
+      comment: Generator state and intermediate files, not for ingestion

@@ -93,3 +93,32 @@ How this build was made: what was decided, why, and where AI helped. This feeds 
 **Prompts that shaped the work**
 - "Go ahead with items 1 and 2 using subagents."
 - "Approve the agent as written... good w/ that"
+
+## 2026-10-28 · Synthetic data generator
+
+**What happened**
+- Built the generator in `src/hearth_data/` as a wheel the bundle builds. `simulate.py` steps through the window one day at a time in NumPy. `write.py` turns the result into raw files with Spark. `check.py` measures the planted patterns from the simulated rows. `config.py` holds every planted number.
+- Added `resources/generator.job.yml`, a serverless job with `full` and `drip` modes, and a `generator` Volume for drip state.
+- Calibrated against the data design. The first run had 28.8M app events and holdout returns far above the design, because engaged members' session rates spread too wide. A floor on session rates and shorter sessions brought it to 10.8M events. Measured results are in `docs/evidence/generator-patterns.txt`, and `docs/data-design.md` now shows planted and measured values side by side.
+- Tested that drip continues a full run exactly: 60 days then one drip day matches 61 days straight through, row for row.
+- Ran the job on serverless. It failed twice before it worked. Databricks passes the named parameter `end-date` as `--end_date`, so the script now accepts both. Then saving the drip state failed, because a zip write seeks and Volume files can't, so the state is written locally and copied in.
+- Checked the landed files with SQL in `scripts/validate_landing.py`. Every bad-row rate landed within 0.01 points of its target, `app_version` first appears on day 40, nothing is orphaned, and every email and phone is in a reserved fictional range. The first check also found a 61st `app_events` folder from sessions crossing midnight, so a session's events now land in the folder of the day it started. The output is in `docs/evidence/landing-validation.txt`.
+
+**Decisions**
+
+| Decision | Choice | Why |
+|---|---|---|
+| Nudge test outcome | Decided when the decision is made: natural return at the member's baseline, plus the nudge's uplift if sent. Sessions in the 72 hours then agree with it | Treatment and holdout are comparable by construction, so the uplift model has a clean target, and `generator_truth` holds the exact planted value per decision |
+| Holdout rows | Keep the nudge they would have got | Each nudge gets its own control group. Members eligible for `match_waiting` come back more anyway, so a shared holdout would overstate it |
+| "Came back" window | 72 hours from `decided_ts` for both arms | Holdouts have no send time. Measuring both arms from the decision keeps the comparison fair |
+| Planted uplift | At the member's preferred hour, 60% at other daytime hours | Ties the nudge and send-hour patterns together. The test's random hours measure about 70% of planted, and the doc says so |
+| Doc numbers that didn't hold | Updated the doc to measured values instead of forcing the sim | Holdout baselines came out at 55% at 2 to 3 days away, not the draft's 25%. The mechanism is the planted truth, and aggregates follow from it |
+| Blast send time | 13:00 UTC, so 6:00 for Pacific and Arizona | One fixed send time is how a blast tool works, and it puts a quarter of members in the night window without inventing a separate bug |
+| Days away for members quiet before the window | `last_active_ts` in the members export | A real user database export has it, and without it silver can't tell a member away 3 days from one away 60 |
+| Window dates | Ends 2 days before the run, drip never past yesterday | Genie questions like "last week" need recent data, and drip days must not look like future timestamps to the quarantine rule |
+| Bad rows | Copies of real events with a defect | Dropping them leaves the planted patterns intact |
+| Fake PII | `example` email domains and 555-01xx phones | Reserved for fiction, so no generated contact can belong to a real person |
+| Wheel version | `dynamic_version` on the artifact | Serverless can reuse a cached wheel with the same version |
+
+**Prompts that shaped the work**
+- "Go for it."

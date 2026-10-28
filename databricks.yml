@@ -5,6 +5,13 @@ bundle:
 include:
   - resources/*.yml
 
+artifacts:
+  hearth_data:
+    type: whl
+    build: uv build --wheel
+    path: .
+    dynamic_version: true  # a new version per deploy, so serverless doesn't reuse a cached wheel
+
 variables:
   catalog:
     description: Unity Catalog for Hearth resources (no CREATE CATALOG on this metastore)
