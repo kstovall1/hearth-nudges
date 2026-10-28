@@ -103,6 +103,8 @@ How this build was made: what was decided, why, and where AI helped. This feeds 
 - Tested that drip continues a full run exactly: 60 days then one drip day matches 61 days straight through, row for row.
 - Ran the job on serverless. It failed twice before it worked. Databricks passes the named parameter `end-date` as `--end_date`, so the script now accepts both. Then saving the drip state failed, because a zip write seeks and Volume files can't, so the state is written locally and copied in.
 - Checked the landed files with SQL in `scripts/validate_landing.py`. Every bad-row rate landed within 0.01 points of its target, `app_version` first appears on day 40, nothing is orphaned, and every email and phone is in a reserved fictional range. The first check also found a 61st `app_events` folder from sessions crossing midnight, so a session's events now land in the folder of the day it started. The output is in `docs/evidence/landing-validation.txt`.
+- Ran drip mode on serverless. It added 10/27 with the same rows as the local drip test, and a second run refused to add a day that hasn't ended. The output is in `docs/evidence/generator-drip.txt`.
+- Fixed the `fevm-katie-febar` CLI profile, whose `workspace_id` didn't match the workspace it connects to. That broke `databricks bundle summary`, though deploys and runs worked.
 
 **Decisions**
 

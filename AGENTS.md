@@ -119,7 +119,7 @@ Internal details (workspace URL, resource IDs, FE Bar scoring and rules, interna
 - [x] Bundle skeleton (`databricks.yml`, target using the `fevm-katie-febar` profile)
 - [x] Synthetic data generator writing daily files to the UC Volume
 - [ ] SDP pipeline bronze → silver → gold with expectations
-- [ ] UC setup: schemas, PII masks, tags, grants (`hearth_marketing` and `hearth_pii_readers` account groups already exist)
+- [ ] UC setup: PII masks, tags, grants (schemas are in the bundle; `hearth_marketing` and `hearth_pii_readers` account groups already exist)
 - [x] Pre-commit check for workspace URLs, tokens and real names
 - [ ] Commit pipeline run outputs as text
 
@@ -147,6 +147,7 @@ Internal details (workspace URL, resource IDs, FE Bar scoring and rules, interna
 - [ ] First submission by about 11/21
 
 ### Phase 5, demo and resubmits (11/24 to 11/30)
+- [ ] Rerun the generator in full mode a day or two before the demo, then full-refresh the pipeline, so Genie's "last week" has data. Leave yesterday for a live drip run
 - [ ] Rehearse tell-show-tell with the deck open, and show the whole build, not just the app and Genie
 - [ ] Practice the objections below
 - [ ] Run the live roleplay, read the feedback, resubmit as needed
