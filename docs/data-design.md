@@ -147,12 +147,15 @@ The bad rows are copies of real events with the defect added, so dropping them l
 
 | Layer | Tables |
 |---|---|
-| Silver | `sessions`, `member_daily_activity`, `notification_funnel` (decision → delivered → opened → returned within 72h → opted out → upgraded) |
-| Gold | `member_daily_features`, `lapse_labels`, `nudge_outcomes`, `campaign_daily_kpis` |
+| Bronze | One streaming table per entity, all strings, loaded by Auto Loader |
+| Silver | Typed `members`, `app_events` (deduplicated, bad rows dropped), `app_events_quarantine`, `notification_decisions`, `notification_events` (deduplicated), `subscription_events`, plus `sessions`, `member_daily_activity` and `notification_funnel` (decision → delivered → opened → returned within 72h → opted out → upgraded) |
+| Gold | `member_daily_features`, `lapse_labels`, `nudge_outcomes`, `campaign_daily_kpis`, `reach_daily` |
 | ML | Lapse model trained on `member_daily_features` + `lapse_labels`. Uplift model (Phase 2) trained on `nudge_outcomes` |
 | Genie | `campaign_daily_kpis`, `nudge_outcomes`, `notification_funnel` |
 
-**Lapse label.** A member counts as lapsed on date *d* if they had a session in the 14 days up to *d* and none in the 7 days after it. Features only use data up to *d*, and the train/test split is by date so nothing from the future leaks in. The measured positive rate is 21%.
+**Lapse label.** A member counts as lapsed on date *d* if they had a session in the 14 days up to *d* and none in the 7 days after it. Features only use data up to *d*, and the train/test split is by date so nothing from the future leaks in. The measured positive rate is 21%, in the generator check and in `hearth_gold.lapse_labels`.
+
+Each member's preferred send hour isn't a gold feature yet. It comes with the send-hour picker in Phase 2.
 
 ## Governance
 

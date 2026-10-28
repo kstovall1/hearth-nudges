@@ -1,0 +1,136 @@
+# Pipeline run evidence, 2026-10-28
+# Real output of: uv run python scripts/pipeline_evidence.py
+# First run of hearth-pipeline over the landed files (seed 7, 2026-08-28 to 2026-10-27, including one drip day).
+# Note: pattern 2 below still counts first-day decisions, which have no prior features, so they fall into catch-all segments (the blank new_people_nearby row). Run 2 filters them out.
+
+## Latest update
+
+started                   finished                  final_state
+2026-10-28T19:05:53.774Z  2026-10-28T19:08:50.070Z  COMPLETED
+
+## Rows per table
+
+table_name                            rows
+hearth_silver.app_events              11024387
+hearth_silver.notification_events     1331420
+hearth_silver.sessions                1118691
+hearth_bronze.members                 75283
+hearth_bronze.app_events              11201052
+hearth_bronze.notification_decisions  1404760
+hearth_bronze.notification_events     1344742
+hearth_bronze.subscription_events     27153
+hearth_silver.members                 75283
+hearth_silver.app_events_quarantine   33015
+hearth_silver.notification_decisions  1404760
+hearth_silver.subscription_events     27153
+hearth_silver.member_daily_activity   1535899
+hearth_silver.notification_funnel     1404760
+hearth_gold.member_daily_features     4421931
+hearth_gold.lapse_labels              2587890
+hearth_gold.nudge_outcomes            692813
+hearth_gold.campaign_daily_kpis       62377
+hearth_gold.reach_daily               62
+
+## Rows written per flow in the latest update
+
+flow                                                      rows_written
+katie_febar_catalog.hearth_bronze.app_events              11201052
+katie_febar_catalog.hearth_bronze.members                 75283
+katie_febar_catalog.hearth_bronze.notification_decisions  1404760
+katie_febar_catalog.hearth_bronze.notification_events     1344742
+katie_febar_catalog.hearth_bronze.subscription_events     27153
+katie_febar_catalog.hearth_gold.campaign_daily_kpis       62377
+katie_febar_catalog.hearth_gold.lapse_labels              2587890
+katie_febar_catalog.hearth_gold.member_daily_features     4421931
+katie_febar_catalog.hearth_gold.nudge_outcomes            692813
+katie_febar_catalog.hearth_gold.reach_daily               62
+katie_febar_catalog.hearth_silver.app_events              11024387
+katie_febar_catalog.hearth_silver.app_events_quarantine   33015
+katie_febar_catalog.hearth_silver.member_daily_activity   1535899
+katie_febar_catalog.hearth_silver.members                 75283
+katie_febar_catalog.hearth_silver.notification_decisions  1404760
+katie_febar_catalog.hearth_silver.notification_events     1331420
+katie_febar_catalog.hearth_silver.notification_funnel     1404760
+katie_febar_catalog.hearth_silver.sessions                1118691
+katie_febar_catalog.hearth_silver.subscription_events     27153
+
+## Expectations in the latest update
+
+dataset                                                   expectation               passed    failed
+katie_febar_catalog.hearth_silver.app_events              has_member                11057402  33249
+katie_febar_catalog.hearth_silver.app_events              known_event_type          11068697  21954
+katie_febar_catalog.hearth_silver.app_events              not_in_future             11079590  11061
+katie_febar_catalog.hearth_silver.app_events              valid_timestamp           11090651  0
+katie_febar_catalog.hearth_silver.members                 active_after_signup       75283     0
+katie_febar_catalog.hearth_silver.members                 has_member_id             75283     0
+katie_febar_catalog.hearth_silver.members                 has_timezone              75283     0
+katie_febar_catalog.hearth_silver.members                 known_age_band            75283     0
+katie_febar_catalog.hearth_silver.notification_decisions  has_ids                   1404760   0
+katie_febar_catalog.hearth_silver.notification_decisions  holdout_never_sent        1404760   0
+katie_febar_catalog.hearth_silver.notification_decisions  known_arm                 1404760   0
+katie_febar_catalog.hearth_silver.notification_decisions  known_nudge               1404760   0
+katie_febar_catalog.hearth_silver.notification_events     has_decision              1331420   0
+katie_febar_catalog.hearth_silver.notification_events     known_event_type          1331420   0
+katie_febar_catalog.hearth_silver.notification_funnel     holdout_never_delivered   1404760   0
+katie_febar_catalog.hearth_silver.notification_funnel     opened_only_if_delivered  1404760   0
+katie_febar_catalog.hearth_silver.sessions                ends_after_start          1118691   0
+katie_febar_catalog.hearth_silver.sessions                has_start                 1118691   0
+katie_febar_catalog.hearth_silver.subscription_events     has_member                27153     0
+katie_febar_catalog.hearth_silver.subscription_events     known_event_type          27153     0
+katie_febar_catalog.hearth_silver.subscription_events     paid_events_have_price    27153     0
+
+## Quarantined app events
+
+quarantine_reason   rows
+future_timestamp    11061
+unknown_event_type  21954
+
+## Bronze to silver app events
+
+bronze_rows  duplicate_rows  no_member_rows  quarantined_rows  silver_rows
+11201052     110401          33249           33015             11024387
+
+## Pattern 1: lapse label positive rate
+
+member_days  pct_lapsed
+2587890      21.0
+
+## Pattern 2: 72-hour return, treated against holdout, by nudge and segment
+
+nudge_type         segment        treated  holdout  pct_return_treated  pct_return_holdout  uplift_pts  pct_opt_out_treated
+match_waiting      all            37309    6607     47.6                40.9                6.7         0.99
+new_likes          ages 18-29     48129    8490     33.3                28.9                4.4         0.94
+new_likes          ages 30-34     15463    2698     31.0                27.2                3.8         0.86
+new_likes          ages 35+       20828    3729     24.8                23.4                1.4         0.9
+new_people_nearby                 5922     1117     27.0                25.1                1.9         1.03
+new_people_nearby  large market   65648    11449    39.6                37.1                2.6         0.85
+new_people_nearby  medium market  34393    6174     37.2                35.5                1.7         0.83
+new_people_nearby  small market   42242    7414     35.5                36.3                -0.9        1.8
+profile_tip        after 30 days  138823   24720    35.5                35.6                -0.1        1.13
+profile_tip        first 30 days  9767     1715     46.0                42.4                3.6         0.79
+we_miss_you        15+ days       41064    7129     5.1                 4.9                 0.2         2.79
+we_miss_you        2 days         59650    10816    56.4                55.9                0.4         0.91
+we_miss_you        3-7 days       24439    4308     47.0                44.2                2.8         0.92
+we_miss_you        8-14 days      22898    4223     32.7                30.8                1.9         1.38
+we_miss_you        active         1        0        0.0                                                 0.0
+
+## Pattern 6: the incident, by week (the blast triples from day 35)
+
+week  week_start  pushes  blast_pushes  opt_outs  reachable_at_start  reachable_at_end
+0     2026-08-28  122412  46197         1063      47223               47300
+1     2026-09-04  117344  45789         1393      46608               46607
+2     2026-09-11  112593  45170         1216      46014               46056
+3     2026-09-18  116866  44602         1358      45397               45383
+4     2026-09-25  154792  87392         2002      44694               44065
+5     2026-10-02  188233  125961        3275      44063               41446
+6     2026-10-09  178068  117418        3641      41340               38501
+7     2026-10-16  163407  109187        3251      38459               35919
+8     2026-10-23  105001  68748         2034      35897               34365
+
+## Campaign KPIs: return within 72 hours by campaign and arm
+
+campaign_type  arm        decisions  pct_returned_72h  pct_opted_out
+blast          treatment  676824     46.6              1.72
+nudge_test     holdout    100589     35.1              0.0
+nudge_test     treatment  566576     36.6              1.19
+

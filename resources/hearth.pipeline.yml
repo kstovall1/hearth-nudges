@@ -1,0 +1,17 @@
+# Bronze to silver to gold for Hearth. Auto Loader streams the landing files into bronze; silver and
+# gold are materialized views. Tables go to hearth_bronze, hearth_silver and hearth_gold by their names.
+resources:
+  pipelines:
+    hearth_pipeline:
+      name: hearth-pipeline
+      catalog: ${var.catalog}
+      schema: ${resources.schemas.hearth_bronze.name}
+      serverless: true
+      continuous: false
+      channel: CURRENT
+      root_path: ../src/hearth_pipeline
+      libraries:
+        - glob:
+            include: ../src/hearth_pipeline/**
+      configuration:
+        landing_path: /Volumes/${var.catalog}/hearth_raw/landing

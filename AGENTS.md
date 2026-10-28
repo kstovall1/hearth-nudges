@@ -65,6 +65,7 @@ flowchart LR
 | `docs/data-design.md` | Synthetic data design, planted patterns, governance |
 | `docs/build-log.md` | **The one record of decisions and trade-offs**, plus how AI was used, session by session |
 | `src/hearth_data/` | The synthetic data generator, built as a wheel and run by `resources/generator.job.yml` |
+| `src/hearth_pipeline/` | The SDP pipeline in SQL, one file per table under `bronze/`, `silver/` and `gold/` |
 | `docs/evidence/` | Run output committed as text: deploys, checks, pipeline runs |
 | `README.md` | Written in phase 4. Business outcome first, then architecture, run evidence, decisions and how AI was used |
 
@@ -106,22 +107,22 @@ Internal details (workspace URL, resource IDs, FE Bar scoring and rules, interna
 
 ## Plan and status
 
-### Phase 0, setup ✅ (10/26)
+### Phase 0, setup ✅ (10/26, last items 10/28)
 - [x] Workspace, Lakebase project and public repo created
 - [x] Workspace extended to 12/9 so it stays up for the live demo
 - [x] AI Decide preview enabled; OpenJev, `ai_decide` and the Unity AI Gateway tested
-- [ ] Request the Lakebase `CREATE CATALOG` grant at the start of the Lakebase sync work (grant lasts only 1 to 5 days)
-- [ ] Check the Data Engineering certification is still current
+- [x] Lakebase `CREATE CATALOG` access confirmed working (10/28)
+- [x] Data Engineering certification is current (10/28)
 
 ### Phase 1, data, pipeline and governance (10/27 to 11/2)
 - [x] Draft the synthetic data design (`docs/data-design.md`)
 - [x] Answer the open questions in the data design
 - [x] Bundle skeleton (`databricks.yml`, target using the `fevm-katie-febar` profile)
 - [x] Synthetic data generator writing daily files to the UC Volume
-- [ ] SDP pipeline bronze → silver → gold with expectations
+- [x] SDP pipeline bronze → silver → gold with expectations
 - [ ] UC setup: PII masks, tags, grants (schemas are in the bundle; `hearth_marketing` and `hearth_pii_readers` account groups already exist)
 - [x] Pre-commit check for workspace URLs, tokens and real names
-- [ ] Commit pipeline run outputs as text
+- [x] Commit pipeline run outputs as text
 
 ### Phase 2, intelligence and serving (11/3 to 11/9)
 - [ ] Feature table and lapse label

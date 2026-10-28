@@ -124,3 +124,31 @@ How this build was made: what was decided, why, and where AI helped. This feeds 
 
 **Prompts that shaped the work**
 - "Go for it."
+
+## 2026-10-28 · SDP pipeline
+
+**What happened**
+- Built `hearth-pipeline` in `src/hearth_pipeline/`, all SQL, one file per table. 5 bronze streaming tables, 9 silver tables and 5 gold materialized views, in `hearth_bronze`, `hearth_silver` and `hearth_gold`. Added `resources/hearth.pipeline.yml`, and `resources/hearth_daily.job.yml` with the pipeline as its first task. The daily job is paused until the flow is complete.
+- A validate-only update caught a duplicate `uninstalled` column in `nudge_outcomes` before any data moved.
+- The first run ingested all 61 days in 3 minutes. Expectations dropped all 33,249 rows with no member, and quarantined 11,061 future-dated and 21,954 unknown-type events. Every other expectation passed with no failures. Evidence: `docs/evidence/pipeline-run-1-initial.txt`.
+- Gold reproduces the planted patterns. Uplift by nudge and segment lands within about 0.2 points of the generator's own check, weekly opt-outs match exactly, and the lapse rate is 21.0%.
+- A second update with no new files read nothing into bronze and recomputed silver and gold in 85 seconds. Evidence: `docs/evidence/pipeline-run-2-no-new-files.txt`.
+- Phase 0 is done. Katie confirmed her Data Engineering certification is current and Lakebase `CREATE CATALOG` works.
+
+**Decisions**
+
+| Decision | Choice | Why |
+|---|---|---|
+| Language | SQL for every table | Easiest for reviewers and analysts to read. Nothing here needs Python |
+| Bronze | Streaming tables on Auto Loader, every field a string | Ingestion is incremental, and bronze keeps exactly what landed. Typing happens once, in silver |
+| Deduplication | Materialized views with `QUALIFY row_number()` in silver | Streaming dedup needs a watermark. A future-dated event would push the watermark years ahead and silently drop every real event after it. At 11M rows a recompute takes about a minute |
+| Bad rows | Expectations drop them, and a quarantine table keeps future-dated and unknown-type events | The expectation counts show in the pipeline UI, and nothing a person might want to check is lost. Rows with no member are only dropped, since nothing can use them |
+| Future timestamps | More than a day after ingestion, not after `current_timestamp()` | Deterministic, and it won't start dropping good events if the pipeline runs late |
+| Schemas | One pipeline writing to three schemas by fully qualified names | One flow to run and monitor, with the medallion layers still separate in Unity Catalog |
+| Gold features | As of the end of each UTC day, with `history_days` | No future data leaks into training, and the model can skip rows with short history |
+| KPI table | Counts only, keeping market, age, platform, arm and days away | Rates computed at query time add up across any grouping. Genie can slice by any of those columns |
+| `reach_daily` | Added to gold | The incident's cost is lost reach, and it needs one place to show it |
+| Daily job | Paused | Nothing new lands daily yet. It gets scoring, picking and sync tasks in Phase 2 |
+
+**Prompts that shaped the work**
+- "Let's get started on sdp. Yes I have my DE cert and the lakebase thing works."

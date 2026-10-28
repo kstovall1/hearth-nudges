@@ -1,0 +1,14 @@
+# The daily flow. Phase 1 refreshes the pipeline; scoring, the nudge picker, copy and the Lakebase
+# sync are added as tasks in later phases. Paused until the flow is complete.
+resources:
+  jobs:
+    hearth_daily:
+      name: hearth-daily
+      schedule:
+        quartz_cron_expression: "0 0 9 * * ?"  # 09:00 UTC, after the messaging tool's 07:00 batch
+        timezone_id: UTC
+        pause_status: PAUSED
+      tasks:
+        - task_key: refresh_pipeline
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.hearth_pipeline.id}
