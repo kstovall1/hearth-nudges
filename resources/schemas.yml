@@ -1,0 +1,32 @@
+# The six Hearth schemas in the shared catalog.
+resources:
+  schemas:
+    hearth_raw:
+      catalog_name: ${var.catalog}
+      name: hearth_raw
+      comment: Landing Volume for raw source files
+
+    hearth_bronze:
+      catalog_name: ${var.catalog}
+      name: hearth_bronze
+      comment: Bronze layer, raw data as ingested by Auto Loader
+
+    hearth_silver:
+      catalog_name: ${var.catalog}
+      name: hearth_silver
+      comment: Silver layer, cleaned and deduplicated, sessions and notification funnel
+
+    hearth_gold:
+      catalog_name: ${var.catalog}
+      name: hearth_gold
+      comment: Gold layer, member daily features, lapse labels, nudge outcomes and campaign KPIs
+
+    hearth_ml:
+      catalog_name: ${var.catalog}
+      name: hearth_ml
+      comment: Features, models and generator truth
+
+    hearth_serving:
+      catalog_name: ${var.catalog}
+      name: hearth_serving
+      comment: Next-best-action table synced to Lakebase

@@ -26,3 +26,10 @@ dist/
 .DS_Store
 .idea/
 .vscode/
+
+# Local-only context (internal details, never commit)
+CLAUDE.local.md
+.isaac/
+
+# Private denylist for the pre-commit leak check (real values, never commit)
+.local/

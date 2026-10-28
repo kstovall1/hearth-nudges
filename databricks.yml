@@ -1,0 +1,18 @@
+# Hearth Nudges bundle. Every phase deploys through this file.
+bundle:
+  name: hearth-nudges
+
+include:
+  - resources/*.yml
+
+variables:
+  catalog:
+    description: Unity Catalog for Hearth resources (no CREATE CATALOG on this metastore)
+    default: katie_febar_catalog
+
+targets:
+  # No development mode, so schema names stay exact (no dev_<user>_ prefix).
+  dev:
+    default: true
+    workspace:
+      profile: fevm-katie-febar

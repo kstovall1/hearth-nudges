@@ -114,7 +114,7 @@ Internal details (workspace URL, resource IDs, FE Bar scoring and rules, interna
 ### Phase 1, data, pipeline and governance (10/27 to 11/2)
 - [x] Draft the synthetic data design (`docs/data-design.md`)
 - [x] Answer the open questions in the data design
-- [ ] Bundle skeleton (`databricks.yml`, target using the `fevm-katie-febar` profile)
+- [x] Bundle skeleton (`databricks.yml`, target using the `fevm-katie-febar` profile)
 - [ ] Synthetic data generator writing daily files to the UC Volume
 - [ ] SDP pipeline bronze → silver → gold with expectations
 - [ ] UC setup: schemas, PII masks, tags, grants (`hearth_marketing` and `hearth_pii_readers` account groups already exist)
@@ -170,6 +170,6 @@ Internal details (workspace URL, resource IDs, FE Bar scoring and rules, interna
 
 - **Synthetic data and the fictional Hearth brand only.** Never name real companies, customers or people, and never commit workspace URLs, IDs, tokens or real data.
 - **Don't use Solution Builder** or anything from it.
-- **Commits.** The agent stages changes and drafts a Conventional Commit message. Katie reviews and commits as `kstovall1`. The Databricks pre-commit hook crashes on Python 3.15, so commit with Python 3.13 first on `PATH`. Check `gh auth status` shows `kstovall1` before pushing.
+- **Commits.** The agent stages changes and drafts a Conventional Commit message. Katie reviews and commits as `kstovall1`. The Databricks git hooks crash on Python 3.15. `~/.zshrc` defaults `python3` to 3.13, so plain `git commit` and `git push` work. Check `gh auth status` shows `kstovall1` before pushing.
 - **Log every working session** in `docs/build-log.md`: what changed, decisions and why, and the prompts that shaped the work.
 - **Writing style.** Plain, short sentences. No em dashes or en dashes. No hype.

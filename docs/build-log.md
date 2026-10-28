@@ -51,3 +51,23 @@ How this build was made: what was decided, why, and where AI helped. This feeds 
 
 **Prompts that shaped the work**
 - "Let's answer the open questions in docs/data-design.md."
+
+## 2026-10-27 · Bundle skeleton
+
+**What happened**
+- Fixed the Databricks git hooks crashing on Python 3.15, which removed `SourceFileLoader.load_module`. `~/.zshrc` now puts Python 3.13 first on `PATH`.
+- Added the bundle: `databricks.yml` with a `dev` target on the `fevm-katie-febar` profile, the six `hearth_` schemas in `resources/schemas.yml`, and the `landing` Volume in `resources/landing.volume.yml`. Deployed it and saved the CLI output to `docs/evidence/bundle-deploy.txt`.
+- Ignored `.isaac/` (local tool state) and `.local/` (the private denylist for the pre-commit check).
+- A subagent drafted the bundle. Its first version put every resource in `databricks.yml` and summarized the deploy in its own words. I moved the resources into `resources/` and replaced the summary with real CLI output.
+
+**Decisions**
+
+| Decision | Choice | Why |
+|---|---|---|
+| Bundle mode | No `mode: development` on the `dev` target | Development mode adds a `dev_<user>_` prefix to every name, and the schemas must match the names in the data design. Development mode would also pause schedules, and the pipeline runs on one |
+| Resource layout | `resources/*.yml`, included from `databricks.yml` | Each later phase adds its own resource file without editing the root config |
+| Workspace host | Profile only, never the host | The repo is public |
+
+**Prompts that shaped the work**
+- "Can't I update the Python version or something, do we need 3.15?"
+- "Go ahead with items 1 and 2 using subagents."

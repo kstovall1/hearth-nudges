@@ -1,0 +1,27 @@
+# Bundle deploy evidence, 2026-10-27
+# Real CLI output. The workspace user is replaced with <user>.
+
+$ databricks bundle validate --strict
+Name: hearth-nudges
+Target: dev
+Workspace:
+  User: <user>
+  Path: /Workspace/Users/<user>/.bundle/hearth-nudges/dev
+
+Validation OK!
+
+$ databricks bundle deploy
+Uploading bundle files to /Workspace/Users/<user>/.bundle/hearth-nudges/dev/files...
+Files: 1 uploaded, 1 deleted
+Resources: 0 created, 0 changed, 0 deleted, 7 unchanged
+
+$ databricks schemas list katie_febar_catalog  (hearth_ schemas only)
+katie_febar_catalog.hearth_bronze	Bronze layer, raw data as ingested by Auto Loader
+katie_febar_catalog.hearth_gold	Gold layer, member daily features, lapse labels, nudge outcomes and campaign KPIs
+katie_febar_catalog.hearth_ml	Features, models and generator truth
+katie_febar_catalog.hearth_raw	Landing Volume for raw source files
+katie_febar_catalog.hearth_serving	Next-best-action table synced to Lakebase
+katie_febar_catalog.hearth_silver	Silver layer, cleaned and deduplicated, sessions and notification funnel
+
+$ databricks volumes list katie_febar_catalog hearth_raw
+katie_febar_catalog.hearth_raw.landing	MANAGED	Raw source files for Auto Loader
