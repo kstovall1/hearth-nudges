@@ -225,3 +225,15 @@ How this build was made: what was decided, why, and where AI helped. This feeds 
 
 **Prompts that shaped the work**
 - "ok"
+
+## 2026-11-03 · Docs check
+
+**What happened**
+- Checked the docs against what was built. Every session had a log entry, and the plan matched the work. Three gaps:
+  - Lessons were spread across session entries, and some only came up in chat. They're now in one "Gotchas" list in `AGENTS.md`, which every session reads first.
+  - The pipeline evidence predated the masks and the partial-day fix. `docs/evidence/pipeline-run-3-current.txt` shows the current state: 61 days in `reach_daily`, and the same expectation results as before.
+  - The evidence item in the Phase 2 plan was half done. It's now marked as training and scoring done, copy pending.
+- Added a convention to keep docs current as work happens, including a gotcha whenever something costs time.
+
+**Prompts that shaped the work**
+- "Have you been keeping all our docs updated on lessons learned and progress?"

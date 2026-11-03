@@ -134,7 +134,7 @@ Internal details (workspace URL, resource IDs, FE Bar scoring and rules, interna
 - [ ] `ai_query` copy generation and `ai_decide` copy check
 - [ ] Next-best-action table synced to Lakebase
 - [ ] Notification service simulator with latency output
-- [ ] Commit training metrics, scoring output and sample copy as text
+- [ ] Commit training metrics, scoring output and sample copy as text (training and scoring done 11/3, copy comes with the copy step)
 
 ### Phase 3, Genie and app (11/10 to 11/16)
 - [ ] Genie Agent over the gold tables with instructions and sample questions
@@ -179,3 +179,31 @@ Internal details (workspace URL, resource IDs, FE Bar scoring and rules, interna
 - **Commits.** The agent commits with a Conventional Commit message and pushes when a piece of work is done and verified, without asking first. Commits are authored as `kstovall1`. The Databricks git hooks crash on Python 3.15. `~/.zshrc` defaults `python3` to 3.13, so plain `git commit` and `git push` work. After cloning, run `scripts/install-hooks.sh` so commits run `scripts/check_leaks.py`, and keep the real values it blocks in the gitignored `.local/denylist.txt`. Check `gh auth status` shows `kstovall1` before pushing.
 - **Log every working session** in `docs/build-log.md`: what changed, decisions and why, and the prompts that shaped the work.
 - **Writing style.** Plain, short sentences. No em dashes or en dashes. No hype.
+- **Keep docs current as you go.** Tick the plan, log the session, commit evidence as text, and add a gotcha below whenever something costs time.
+
+## Gotchas
+
+Things that cost time on this build. The build log has the full story; this list is what to check before starting work.
+
+**Platform**
+- Pipeline tables can't be changed with `ALTER` for masks or row filters. Declare them in the pipeline's `CREATE` statement.
+- Masks run as the pipeline owner during a refresh. A mask on a pipeline source table writes masked values downstream, so mask the first table other people read, not its source.
+- Unity Catalog group membership changes take up to about 4 minutes to reach SQL. Poll `is_account_group_member()` before testing access.
+- Groups made with `databricks groups create` are workspace-local, and grants reject them. Create account groups through the workspace endpoint `/api/2.0/account/scim/v2/Groups`.
+- Serverless jobs retry a failed task once on their own. Set `max_retries: 0` on anything that isn't idempotent, like model registration.
+- Named job parameters with hyphens arrive with underscores (`end-date` becomes `--end_date`). Accept both, or use underscores.
+- Zip writes, including `np.savez`, fail on Volume paths because they seek. Write locally, then copy.
+- Serving endpoints pin a model version and can't follow an alias. Rolling out a new champion means updating `lapse_model_version` and deploying.
+- System lineage covers table to table, but not landing files to bronze. Bronze rows keep `_source_file` for that link.
+- Bundle resource keys must be unique across resource types, for example an experiment and a model can't both be `lapse_model`.
+
+**Data**
+- The last landed day can leave a partial next day, from sessions that run past midnight. Anything date-bounded should end at the last day with a session start, as gold does.
+- Streaming dedup needs a watermark, and the planted future-dated events would push it years ahead. Silver dedups in materialized views instead.
+
+**Tools**
+- The CLI login for `fevm-katie-febar` expires after a few days. If a call fails with an invalid refresh token, ask Katie to run `databricks auth login --profile fevm-katie-febar`.
+- An agent's shell keeps the environment from when the session started. If a git hook crashes on Python 3.15, check `python3 --version` and put `/opt/homebrew/opt/python@3.13/libexec/bin` first on `PATH`.
+- `GID` is read-only in zsh. Don't use it as a variable name.
+- The leak check flags any UUID, including the ones in Spark part-file names. Show folders, not file names, in evidence.
+- Check a subagent's files, not just its report. One report said its evidence was redacted when the file held real values.
