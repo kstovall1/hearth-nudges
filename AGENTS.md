@@ -66,6 +66,7 @@ flowchart LR
 | `docs/build-log.md` | **The one record of decisions and trade-offs**, plus how AI was used, session by session |
 | `src/hearth_data/` | The synthetic data generator, built as a wheel and run by `resources/generator.job.yml` |
 | `src/hearth_pipeline/` | The SDP pipeline in SQL, one file per table under `bronze/`, `silver/` and `gold/` |
+| `src/hearth_governance/` | Mask functions, the catalog grant and column tags, run by the `hearth-daily` job around the pipeline |
 | `docs/evidence/` | Run output committed as text: deploys, checks, pipeline runs |
 | `README.md` | Written in phase 4. Business outcome first, then architecture, run evidence, decisions and how AI was used |
 
@@ -114,13 +115,13 @@ Internal details (workspace URL, resource IDs, FE Bar scoring and rules, interna
 - [x] Lakebase `CREATE CATALOG` access confirmed working (10/28)
 - [x] Data Engineering certification is current (10/28)
 
-### Phase 1, data, pipeline and governance (10/27 to 11/2)
+### Phase 1, data, pipeline and governance ✅ (10/27 to 11/3)
 - [x] Draft the synthetic data design (`docs/data-design.md`)
 - [x] Answer the open questions in the data design
 - [x] Bundle skeleton (`databricks.yml`, target using the `fevm-katie-febar` profile)
 - [x] Synthetic data generator writing daily files to the UC Volume
 - [x] SDP pipeline bronze → silver → gold with expectations
-- [ ] UC setup: PII masks, tags, grants (schemas are in the bundle; `hearth_marketing` and `hearth_pii_readers` account groups already exist)
+- [x] UC setup: PII masks, tags, grants
 - [x] Pre-commit check for workspace URLs, tokens and real names
 - [x] Commit pipeline run outputs as text
 

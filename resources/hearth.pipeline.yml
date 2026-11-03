@@ -14,4 +14,5 @@ resources:
         - glob:
             include: ../src/hearth_pipeline/**
       configuration:
+        catalog: ${var.catalog}
         landing_path: /Volumes/${var.catalog}/hearth_raw/landing

@@ -1,4 +1,5 @@
-# The six Hearth schemas in the shared catalog.
+# The six Hearth schemas in the shared catalog. Marketing and PII readers can read silver and gold.
+# Nobody else gets raw, bronze or ml: bronze holds unmasked PII, and ml holds the generator's answers.
 resources:
   schemas:
     hearth_raw:
@@ -15,11 +16,21 @@ resources:
       catalog_name: ${var.catalog}
       name: hearth_silver
       comment: Silver layer, cleaned and deduplicated, sessions and notification funnel
+      grants:
+        - principal: hearth_marketing
+          privileges: [USE_SCHEMA, SELECT]
+        - principal: hearth_pii_readers
+          privileges: [USE_SCHEMA, SELECT]
 
     hearth_gold:
       catalog_name: ${var.catalog}
       name: hearth_gold
       comment: Gold layer, member daily features, lapse labels, nudge outcomes and campaign KPIs
+      grants:
+        - principal: hearth_marketing
+          privileges: [USE_SCHEMA, SELECT]
+        - principal: hearth_pii_readers
+          privileges: [USE_SCHEMA, SELECT]
 
     hearth_ml:
       catalog_name: ${var.catalog}

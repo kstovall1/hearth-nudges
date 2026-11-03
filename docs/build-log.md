@@ -152,3 +152,27 @@ How this build was made: what was decided, why, and where AI helped. This feeds 
 
 **Prompts that shaped the work**
 - "Let's get started on sdp. Yes I have my DE cert and the lakebase thing works."
+
+## 2026-11-03 · Unity Catalog governance
+
+**What happened**
+- Added column masks on `hearth_silver.members`: `mask_contact` on `first_name`, `email` and `phone`, and `mask_sensitive` on `gender_identity` and `seeking`. Only `hearth_pii_readers` sees real values.
+- Added `USE_SCHEMA` and `SELECT` on `hearth_silver` and `hearth_gold` for `hearth_marketing` and `hearth_pii_readers` in `resources/schemas.yml`, and `USE CATALOG` in `src/hearth_governance/access.sql`. Tagged the member columns in bronze and silver with `hearth_class` (`pii` or `sensitive`), and `hearth_ml.generator_truth` with `hearth_use` = `evaluation_only`.
+- The `hearth-daily` job now runs three steps: create the mask functions, refresh the pipeline, then apply the catalog grant and tags. Its first run succeeded.
+- Tested the masks with real queries. As the table owner outside both groups, I saw `***` in all five columns for all 75,283 members. After I added myself to `hearth_pii_readers`, the same query showed the real synthetic values. After I removed myself, the masks were back. Evidence: `docs/evidence/governance.txt`.
+- Unity Catalog lineage traces bronze members to silver and on to four downstream tables. It doesn't record the landing files as a source.
+
+**Decisions**
+
+| Decision | Choice | Why |
+|---|---|---|
+| Where the masks go | `hearth_silver.members`, declared in the pipeline's `CREATE` | Pipeline tables can only get masks in their definition. Silver is the first table anyone but the owner can read |
+| Bronze | Unmasked, with no grants | During a refresh, masks run as the pipeline owner, so a mask on bronze would write `***` into silver. Locking bronze down protects raw PII without breaking the pipeline |
+| Mask style | Allow list on `hearth_pii_readers`, full redaction to `***` | Secure by default: new groups and the owner see nothing until added. No partial emails, because nothing downstream needs them |
+| Sensitive attributes | Same allow list as contact PII, separate function and tag | They're needed only for the fairness check, which a PII reader runs. A separate function lets the policy change without touching contact PII |
+| Grants | Schema-level, managed by the bundle | Covers tables the pipeline adds later, and the grants are reviewable in git |
+| My own access | Removed from `hearth_pii_readers` after the test | Least privilege, and the demo shows masking the way marketing sees it. Add myself back to run the fairness check |
+| Tags | Plain tags, set after each pipeline run | Governed tags and ABAC policies need account-level setup. Rerunning the tag step after every refresh keeps them in place |
+
+**Prompts that shaped the work**
+- "Let's start building phase 1."

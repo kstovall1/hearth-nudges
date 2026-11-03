@@ -1,0 +1,124 @@
+# Unity Catalog governance evidence, 2026-11-03
+# Real output. Queries from scripts/governance_evidence.py, run as the pipeline and table owner.
+# Member values shown are synthetic: example.com emails and 555-01xx phones.
+
+## hearth-daily job run
+
+$ databricks bundle run hearth_daily
+2026-11-03 10:47:53 "hearth-daily" TERMINATED SUCCESS
+Tasks: create_masks, then refresh_pipeline, then apply_access
+
+# Step 1. Owner, outside both groups
+
+## Caller's groups
+
+in_hearth_marketing  in_hearth_pii_readers
+false                false
+
+## What the caller sees in hearth_silver.members
+
+members  first_name_masked  email_masked  email_visible  phone_masked  gender_identity_masked  seeking_masked  age_band_visible
+75283    75283              75283         0              75283         75283                   75283           75283
+
+## One row as the caller sees it (all values are synthetic)
+
+member_id  first_name  email  phone  gender_identity  seeking  age_band  metro
+m_000001   ***         ***    ***    ***              ***      35-44     Other
+
+# Step 2. Same user after joining hearth_pii_readers
+
+## Caller's groups
+
+in_hearth_marketing  in_hearth_pii_readers
+false                true
+
+## What the caller sees in hearth_silver.members
+
+members  first_name_masked  email_masked  email_visible  phone_masked  gender_identity_masked  seeking_masked  age_band_visible
+75283    0                  0             75283          0             0                       0               75283
+
+## One row as the caller sees it (all values are synthetic)
+
+member_id  first_name  email                     phone            gender_identity  seeking  age_band  metro
+m_000001   Teresa      teresa.love0@example.com  +1-851-555-0129  man              women    35-44     Other
+
+# Step 3. Same user after leaving hearth_pii_readers (the removal took about 4 minutes to reach SQL)
+
+## Caller's groups
+
+in_hearth_marketing  in_hearth_pii_readers
+false                false
+
+## What the caller sees in hearth_silver.members
+
+members  first_name_masked  email_masked  email_visible  phone_masked  gender_identity_masked  seeking_masked  age_band_visible
+75283    75283              75283         0              75283         75283                   75283           75283
+
+## One row as the caller sees it (all values are synthetic)
+
+member_id  first_name  email  phone  gender_identity  seeking  age_band  metro
+m_000001   ***         ***    ***    ***              ***      35-44     Other
+
+# Setup: masks, tags, grants and lineage
+
+## Column masks
+
+table_schema   table_name  column_name      mask_name
+hearth_silver  members     email            katie_febar_catalog.hearth_silver.mask_contact
+hearth_silver  members     first_name       katie_febar_catalog.hearth_silver.mask_contact
+hearth_silver  members     gender_identity  katie_febar_catalog.hearth_silver.mask_sensitive
+hearth_silver  members     phone            katie_febar_catalog.hearth_silver.mask_contact
+hearth_silver  members     seeking          katie_febar_catalog.hearth_silver.mask_sensitive
+
+## Column tags
+
+schema_name    table_name  column_name      tag_name      tag_value
+hearth_bronze  members     email            hearth_class  pii
+hearth_bronze  members     first_name       hearth_class  pii
+hearth_bronze  members     phone            hearth_class  pii
+hearth_bronze  members     gender_identity  hearth_class  sensitive
+hearth_bronze  members     seeking          hearth_class  sensitive
+hearth_silver  members     email            hearth_class  pii
+hearth_silver  members     first_name       hearth_class  pii
+hearth_silver  members     phone            hearth_class  pii
+hearth_silver  members     gender_identity  hearth_class  sensitive
+hearth_silver  members     seeking          hearth_class  sensitive
+
+## Table tags
+
+schema_name  table_name       tag_name    tag_value
+hearth_ml    generator_truth  hearth_use  evaluation_only
+
+## Catalog grants to the Hearth groups
+
+grantee             privilege_type
+hearth_marketing    USE_CATALOG
+hearth_pii_readers  USE_CATALOG
+
+## Schema grants to the Hearth groups (raw, bronze, ml and serving should have none)
+
+securable      grantee             privilege_type
+hearth_gold    hearth_marketing    SELECT
+hearth_gold    hearth_marketing    USE_SCHEMA
+hearth_gold    hearth_pii_readers  SELECT
+hearth_gold    hearth_pii_readers  USE_SCHEMA
+hearth_silver  hearth_marketing    SELECT
+hearth_silver  hearth_marketing    USE_SCHEMA
+hearth_silver  hearth_pii_readers  SELECT
+hearth_silver  hearth_pii_readers  USE_SCHEMA
+
+## Lineage into and out of the members tables
+
+source                                     target
+katie_febar_catalog.hearth_bronze.members  katie_febar_catalog.hearth_silver.members
+katie_febar_catalog.hearth_silver.members  katie_febar_catalog.hearth_gold.campaign_daily_kpis
+katie_febar_catalog.hearth_silver.members  katie_febar_catalog.hearth_gold.member_daily_features
+katie_febar_catalog.hearth_silver.members  katie_febar_catalog.hearth_gold.reach_daily
+katie_febar_catalog.hearth_silver.members  katie_febar_catalog.hearth_silver.notification_funnel
+katie_febar_catalog.hearth_silver.members  katie_febar_catalog.hearth_silver.sessions
+
+## Landing files behind hearth_bronze.members
+
+files  first_folder           last_folder            rows
+61     members/dt=2026-08-28  members/dt=2026-10-27  75283
+

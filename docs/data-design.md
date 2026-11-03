@@ -159,9 +159,21 @@ Each member's preferred send hour isn't a gold feature yet. It comes with the se
 
 ## Governance
 
-- `email`, `phone`, `first_name` get column masks. Only `hearth_pii_readers` sees them unmasked.
-- `gender_identity` and `seeking` are tagged sensitive. They're **left out of model features and copy prompts** and masked for `hearth_marketing`. The eval checks that nudge allocation rates don't differ sharply across these groups.
-- Generated copy is checked for PII before it can reach Lakebase.
+Built 11/3. Evidence: `docs/evidence/governance.txt`.
+
+| Control | Where | Effect |
+|---|---|---|
+| Column masks on `first_name`, `email`, `phone` (`mask_contact`) | `hearth_silver.members` | Real values only for `hearth_pii_readers`. Everyone else, marketing and the table owner included, sees `***` |
+| Column masks on `gender_identity`, `seeking` (`mask_sensitive`) | `hearth_silver.members` | Same. They're **left out of model features and copy prompts**. The eval, run by a PII reader, checks that nudge allocation rates don't differ sharply across these groups |
+| No grants | `hearth_raw`, `hearth_bronze`, `hearth_ml`, `hearth_serving` | Only the owner reads raw files, unmasked bronze PII and the generator's answers. Serving gets grants with the app in Phase 3 |
+| `USE_SCHEMA` and `SELECT` | `hearth_silver`, `hearth_gold` | For `hearth_marketing` and `hearth_pii_readers`. Plus `USE CATALOG` on the catalog |
+| Tag `hearth_class` = `pii` or `sensitive` | The five member columns, in bronze and silver | Find every copy with `information_schema.column_tags` |
+| Tag `hearth_use` = `evaluation_only` | `hearth_ml.generator_truth` | Marks it as never a feature |
+
+- Masks are declared in the pipeline's `CREATE` statement, because pipeline tables can't be altered. The functions are in `src/hearth_governance/masks.sql`. The `hearth-daily` job creates them before the pipeline runs, and applies the catalog grant and tags after it.
+- During a pipeline refresh, masks run as the pipeline owner. That's why bronze isn't masked: silver would store `***`. Gold never reads the masked columns.
+- Unity Catalog lineage traces `hearth_bronze.members` to silver and on to every gold table. It doesn't record the landing files, so each bronze row keeps `_source_file`.
+- Generated copy is checked for PII before it can reach Lakebase (Phase 2).
 
 ## How it gets generated
 

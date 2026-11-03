@@ -16,6 +16,10 @@ variables:
   catalog:
     description: Unity Catalog for Hearth resources (no CREATE CATALOG on this metastore)
     default: katie_febar_catalog
+  warehouse_id:
+    description: SQL warehouse for the job's SQL tasks
+    lookup:
+      warehouse: Serverless Starter Warehouse
 
 targets:
   # No development mode, so schema names stay exact (no dev_<user>_ prefix).
