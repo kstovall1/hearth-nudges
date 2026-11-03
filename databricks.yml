@@ -16,6 +16,9 @@ variables:
   catalog:
     description: Unity Catalog for Hearth resources (no CREATE CATALOG on this metastore)
     default: katie_febar_catalog
+  lapse_model_version:
+    description: Version of hearth_ml.lapse_model the serving endpoint serves. Set it to the champion version
+    default: "5"
   warehouse_id:
     description: SQL warehouse for the job's SQL tasks
     lookup:

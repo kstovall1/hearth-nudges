@@ -1,4 +1,5 @@
-# The lapse-risk model: its MLflow experiment, its Unity Catalog entry, and the job that trains it.
+# The lapse-risk model: its MLflow experiment, its Unity Catalog entry, the job that trains it, and the
+# endpoint that scores new members live. Batch scores come from the hearth-daily job instead.
 # Retraining is on demand for now. Each run registers a new version, and the champion alias moves
 # only when the notebook's promotion gate passes.
 resources:
@@ -36,3 +37,15 @@ resources:
             dependencies:
               - mlflow>=3.1
               - scikit-learn>=1.5
+
+  model_serving_endpoints:
+    lapse_endpoint:
+      name: hearth-lapse
+      config:
+        served_entities:
+          # Endpoints serve a pinned version, not an alias. When training moves champion, set
+          # lapse_model_version to the new version and deploy.
+          - entity_name: ${var.catalog}.hearth_ml.lapse_model
+            entity_version: ${var.lapse_model_version}
+            workload_size: Small
+            scale_to_zero_enabled: true

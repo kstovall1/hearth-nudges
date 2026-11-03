@@ -1,6 +1,6 @@
-# The daily flow: mask functions, then the pipeline, then catalog grants and column tags. Scoring, the
-# nudge picker, copy and the Lakebase sync join in later phases. The schedule stays paused until the
-# flow is complete; run it by hand meanwhile.
+# The daily flow: mask functions, then the pipeline, then lapse scoring and the catalog grant and column
+# tags. The nudge picker, copy and the Lakebase sync join in later Phase 2 steps. The schedule stays paused
+# until the flow is complete; run it by hand meanwhile.
 resources:
   jobs:
     hearth_daily:
@@ -12,6 +12,8 @@ resources:
       parameters:
         - name: catalog
           default: ${var.catalog}
+        - name: score_days
+          default: "1"  # days of lapse scores to write, more to backfill
       tasks:
         - task_key: create_masks
           sql_task:
@@ -27,6 +29,18 @@ resources:
           pipeline_task:
             pipeline_id: ${resources.pipelines.hearth_pipeline.id}
 
+        - task_key: score_lapse
+          depends_on:
+            - task_key: refresh_pipeline
+          max_retries: 0
+          environment_key: ml
+          notebook_task:
+            notebook_path: ../src/hearth_ml/score_lapse.py
+            base_parameters:
+              catalog: "{{job.parameters.catalog}}"
+              model_name: lapse_model
+              days: "{{job.parameters.score_days}}"
+
         - task_key: apply_access
           depends_on:
             - task_key: refresh_pipeline
@@ -36,3 +50,10 @@ resources:
               path: ../src/hearth_governance/access.sql
             parameters:
               catalog: "{{job.parameters.catalog}}"
+      environments:
+        - environment_key: ml
+          spec:
+            client: "4"
+            dependencies:
+              - mlflow>=3.1
+              - scikit-learn>=1.5

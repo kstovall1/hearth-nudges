@@ -1,0 +1,28 @@
+# Lapse serving endpoint evidence, 2026-11-03
+# Real output of scripts/query_lapse_endpoint.py against the hearth-lapse endpoint (Small, scale to zero).
+
+$ databricks serving-endpoints get hearth-lapse
+ready: READY, config_update: NOT_UPDATING, entity: katie_febar_catalog.hearth_ml.lapse_model version 5, workload: Small, scale_to_zero: true
+
+$ uv run python scripts/query_lapse_endpoint.py --calls 30
+## Endpoint
+
+hearth-lapse: READY, serving katie_febar_catalog.hearth_ml.lapse_model version 5
+
+## Endpoint against batch scores, same features
+
+member_id  feature_date   batch  endpoint  match
+m_070279   2026-10-27    0.9246    0.9246  True
+m_065873   2026-10-27    0.9075    0.9075  True
+m_052125   2026-10-27    0.9007    0.9007  True
+m_046202   2026-10-27    0.0000    0.0000  True
+m_015080   2026-10-27    0.0000    0.0000  True
+
+## Brand-new member, scored live from features in the request
+
+{'tenure_days': 1, 'sessions_7d': 1, 'profile_views_7d': 9, 'likes_sent_7d': 3, 'plan': 'free'}
+lapse_risk: 0.1761
+
+## Latency, 30 single-member calls from a laptop over the internet, after a warm-up call
+
+p50 174 ms, p95 226 ms, max 624 ms

@@ -3,7 +3,9 @@
 CREATE OR REFRESH MATERIALIZED VIEW hearth_gold.reach_daily
 COMMENT 'One row per UTC day. reachable is members who opted in to push and have not turned it off or uninstalled.'
 AS WITH days AS (
+  -- Complete days only, as in member_daily_features
   SELECT DISTINCT activity_date AS day FROM hearth_silver.member_daily_activity
+  WHERE activity_date <= (SELECT max(to_date(session_start_ts)) FROM hearth_silver.sessions)
 ),
 opt_outs AS (
   SELECT member_id, min(to_date(opted_out_ts)) AS opted_out_date, bool_or(uninstalled) AS uninstalled

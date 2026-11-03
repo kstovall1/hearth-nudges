@@ -5,8 +5,11 @@ CREATE OR REFRESH MATERIALIZED VIEW hearth_gold.member_daily_features
 CLUSTER BY AUTO
 COMMENT 'Member features as of the end of feature_date (UTC). Inputs to the lapse model and the nudge picker. No sensitive attributes.'
 AS WITH bounds AS (
-  SELECT min(activity_date) AS first_date, max(activity_date) AS last_date
-  FROM hearth_silver.member_daily_activity
+  -- The last complete day is the last one with a session start. Events from sessions that run past
+  -- midnight on the final day would otherwise add a partial day where nobody has a session.
+  SELECT
+    (SELECT min(activity_date) FROM hearth_silver.member_daily_activity) AS first_date,
+    (SELECT max(to_date(session_start_ts)) FROM hearth_silver.sessions) AS last_date
 ),
 spine AS (
   SELECT m.member_id, explode(sequence(greatest(to_date(m.signup_ts), b.first_date), b.last_date)) AS feature_date

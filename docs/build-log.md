@@ -200,3 +200,28 @@ How this build was made: what was decided, why, and where AI helped. This feeds 
 
 **Prompts that shaped the work**
 - "Let's get started."
+
+## 2026-11-03 · Batch scoring and the serving endpoint
+
+**What happened**
+- Added `src/hearth_ml/score_lapse.py` as a `score_lapse` task in `hearth-daily`, after the pipeline. It scores members active in the last 14 days with the `champion` version and merges the scores into `hearth_gold.member_lapse_scores`, keyed on member and day, so reruns are safe. A `score_days` parameter backfills.
+- Added the `hearth-lapse` serving endpoint (Small, scale to zero) in `resources/lapse_model.yml`, for brand-new members who aren't in batch scores yet.
+- The first backfill found a bug. Gold features ran to 10/28, a partial day made only of events from 10/27 sessions that ran past midnight. Every member got a 10/28 row with no sessions, which raised risk from 0.207 to 0.219. It also skewed the last week of labels, which counted 10/28 as a day without sessions. `member_daily_features` and `reach_daily` now end at the last day with a session start. I deleted the 51,712 partial-day scores and retrained.
+- The retrain registered version 5 on clean labels (test week 10/14 to 10/20). AUC was 0.726 against 0.650 for the rule, calibration error 0.006. On the same week it came within 0.001 of version 4, so the gate moved `champion` to version 5. I pointed the endpoint at version 5 and rescored 14 days. Evidence: `docs/evidence/lapse-model-training.txt`.
+- Scores match outcomes. On the seven days with known outcomes, which are version 5's held-out week, daily mean risk is within 0.3 points of the actual lapse rate. The high band is 37.5% predicted against 36.5% actual. Evidence: `docs/evidence/lapse-scoring.txt`.
+- The endpoint returns the same scores as batch scoring for real members, to 4 decimal places. It scores a one-day-old member at 0.176 from features in the request. From a laptop, p50 latency is 174 ms and p95 is 226 ms. Evidence: `docs/evidence/lapse-endpoint.txt`.
+
+**Decisions**
+
+| Decision | Choice | Why |
+|---|---|---|
+| Who gets scored | Members active in the last 14 days and still installed | The population the model was trained on. Quieter members are a reactivation question for the nudge picker, not a lapse prediction |
+| Scoring method | Load the champion with scikit-learn and score in pandas, then `MERGE` | About 52,000 members a day fits on one node. It skips Spark UDF environment setup, and `MERGE` makes reruns and backfills safe |
+| Where scores live | `hearth_gold.member_lapse_scores` | Marketing and Genie already read gold, and the picker reads it next. `hearth_ml` stays ungranted |
+| Risk bands | high at 0.30 and up, medium from 0.12, otherwise low | Cut points near deciles 4 and 8 of the calibration. About a quarter of members are high on a typical day |
+| Endpoint version | Pinned with the `lapse_model_version` bundle variable | Serving can't follow an alias. Rolling out a new champion means updating the variable and deploying, as I did for version 5 |
+| Endpoint size | Small, scale to zero | It only scores new members, a trickle. The trade-off is a cold start after idle time, which the demo should warm first |
+| Last day of features | The last day with a session start | Each landed day is complete, so this is also the last complete day. It keeps partial days out of features, labels and scores |
+
+**Prompts that shaped the work**
+- "ok"

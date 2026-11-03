@@ -1,0 +1,81 @@
+# Lapse scoring evidence, 2026-11-03
+# Real output. The hearth-daily job's score_lapse task (src/hearth_ml/score_lapse.py), then scripts/scoring_evidence.py.
+# 10/14 to 10/20 is version 5's held-out week, so predicted against actual there is out of sample.
+
+$ databricks bundle run hearth_daily --params score_days=14
+2026-11-03 13:07:30 "hearth-daily" TERMINATED SUCCESS
+Tasks: create_masks, refresh_pipeline, then score_lapse and apply_access
+
+score_lapse: 725,114 member-days scored with version 5, up to 2026-10-27
+
+feature_date  members  mean_risk  high  medium   low
+  2026-10-14    51288      0.205 13868   21070 16350
+  2026-10-15    51358      0.205 13664   21296 16398
+  2026-10-16    51558      0.206 14067   21127 16364
+  2026-10-17    51493      0.204 13582   21331 16580
+  2026-10-18    51637      0.204 13630   21388 16619
+  2026-10-19    51699      0.203 13438   21540 16721
+  2026-10-20    51749      0.203 13355   21665 16729
+  2026-10-21    51844      0.203 13496   21561 16787
+  2026-10-22    51879      0.203 13473   21575 16831
+  2026-10-23    51993      0.204 13737   21611 16645
+  2026-10-24    52049      0.202 13398   21744 16907
+  2026-10-25    52160      0.201 13424   21710 17026
+  2026-10-26    52141      0.201 13377   21663 17101
+  2026-10-27    52266      0.201 13432   21688 17146
+
+## Scores per day
+
+feature_date  members  mean_risk  pct_high  pct_medium  pct_low  model_version
+2026-10-14    51288    0.205      27.0      41.1        31.9     5
+2026-10-15    51358    0.205      26.6      41.5        31.9     5
+2026-10-16    51558    0.206      27.3      41.0        31.7     5
+2026-10-17    51493    0.204      26.4      41.4        32.2     5
+2026-10-18    51637    0.204      26.4      41.4        32.2     5
+2026-10-19    51699    0.203      26.0      41.7        32.3     5
+2026-10-20    51749    0.203      25.8      41.9        32.3     5
+2026-10-21    51844    0.203      26.0      41.6        32.4     5
+2026-10-22    51879    0.203      26.0      41.6        32.4     5
+2026-10-23    51993    0.204      26.4      41.6        32.0     5
+2026-10-24    52049    0.202      25.7      41.8        32.5     5
+2026-10-25    52160    0.201      25.7      41.6        32.6     5
+2026-10-26    52141    0.201      25.7      41.5        32.8     5
+2026-10-27    52266    0.201      25.7      41.5        32.8     5
+
+## Predicted against actual, on scored days whose outcome is known
+
+risk_band  member_days  mean_predicted  actual_lapse_rate
+medium     149417       0.213           0.218
+low        115761       0.052           0.054
+high       95604        0.375           0.365
+
+## Same, by day
+
+feature_date  member_days  mean_predicted  actual_lapse_rate
+2026-10-14    51288        0.205           0.206
+2026-10-15    51358        0.205           0.203
+2026-10-16    51558        0.206           0.203
+2026-10-17    51493        0.204           0.204
+2026-10-18    51637        0.204           0.205
+2026-10-19    51699        0.203           0.204
+2026-10-20    51749        0.203           0.206
+
+## Lapse risk by cohort, latest day (a Genie-style question)
+
+age_band  plan     members  mean_risk  high_risk
+18-24     free     13489    0.195      3141
+18-24     plus     2264     0.114      75
+18-24     premium  826      0.109      30
+25-29     free     12516    0.212      3542
+25-29     plus     2038     0.12       82
+25-29     premium  774      0.116      26
+30-34     free     8044     0.223      2464
+30-34     plus     1340     0.125      57
+30-34     premium  521      0.12       19
+35-44     free     5755     0.253      2469
+35-44     plus     921      0.158      76
+35-44     premium  368      0.146      22
+45+       free     2778     0.277      1379
+45+       plus     454      0.164      31
+45+       premium  178      0.163      19
+

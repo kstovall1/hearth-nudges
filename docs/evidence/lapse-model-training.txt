@@ -1,89 +1,91 @@
 # Lapse model training evidence, 2026-11-03
 # Real output of the hearth-train-lapse job (src/hearth_ml/train_lapse_model.py) on serverless.
+# This is the run that registered version 5, the current champion, after the partial-day fix. See docs/build-log.md.
 
 $ databricks bundle run hearth_train_lapse
-2026-11-03 11:44:26 "hearth-train-lapse" TERMINATED SUCCESS
+2026-11-03 12:54:16 "hearth-train-lapse" TERMINATED SUCCESS
 
 Lapse-risk model evaluation on the held-out week
 
 Split
-  train_dates: 2026-09-24 to 2026-10-07
-  test_dates: 2026-10-15 to 2026-10-21
-  train_rows: 699989
-  test_rows: 361338
+  train_dates: 2026-09-24 to 2026-10-06
+  test_dates: 2026-10-14 to 2026-10-20
+  train_rows: 649191
+  test_rows: 360782
   train_lapse_rate: 0.2067
-  test_lapse_rate: 0.2092
+  test_lapse_rate: 0.2044
 
 Metrics
-  test_auc: 0.7253
-  test_pr_auc: 0.3729
-  test_brier: 0.1486
-  test_log_loss: 0.4552
-  baseline_auc: 0.6483
-  baseline_pr_auc: 0.3196
-  auc_gain_over_baseline: 0.0770
-  precision_top_10pct: 0.4187
-  recall_top_10pct: 0.2002
-  lift_top_10pct: 2.0017
-  precision_top_20pct: 0.3871
-  recall_top_20pct: 0.3701
-  lift_top_20pct: 1.8505
-  calibration_error: 0.0073
+  test_auc: 0.7256
+  test_pr_auc: 0.3680
+  test_brier: 0.1462
+  test_log_loss: 0.4495
+  baseline_auc: 0.6501
+  baseline_pr_auc: 0.3159
+  auc_gain_over_baseline: 0.0755
+  precision_top_10pct: 0.4133
+  recall_top_10pct: 0.2023
+  lift_top_10pct: 2.0226
+  precision_top_20pct: 0.3797
+  recall_top_20pct: 0.3717
+  lift_top_20pct: 1.8583
+  calibration_error: 0.0060
+  champion_auc: 0.7261
 
 Promotion gate
   pass: AUC at least 0.02 above the baseline
   pass: calibration error at most 0.02
-  pass: AUC no more than 0.005 below champion version None
+  pass: AUC no more than 0.005 below champion version 4
   champion alias moved to the new version: True
 
 Calibration by score decile (10 is riskiest)
          rows  mean_score  lapse_rate
 decile                               
-1       36134       0.010       0.015
-2       36134       0.046       0.046
-3       36134       0.089       0.091
-4       36133       0.136       0.142
-5       36134       0.183       0.192
-6       36134       0.226       0.237
-7       36133       0.269       0.279
-8       36134       0.310       0.316
-9       36134       0.356       0.355
-10      36134       0.443       0.419
+1       36079       0.010       0.014
+2       36078       0.046       0.047
+3       36078       0.088       0.089
+4       36078       0.134       0.138
+5       36078       0.180       0.184
+6       36078       0.223       0.228
+7       36078       0.265       0.274
+8       36078       0.306       0.310
+9       36078       0.352       0.346
+10      36079       0.437       0.413
 
 By segment
                    rows  lapse_rate    auc
 segment                                   
-after 30 days  335114.0       0.207  0.727
-android        151393.0       0.211  0.725
-first 30 days   26224.0       0.237  0.695
-free           294696.0       0.225  0.714
-ios            209945.0       0.208  0.726
-large market   167186.0       0.209  0.725
-medium market   86692.0       0.210  0.728
-paid            66642.0       0.137  0.737
-small market   107460.0       0.208  0.724
+after 30 days  334535.0       0.202  0.727
+android        151220.0       0.206  0.725
+first 30 days   26247.0       0.230  0.701
+free           294274.0       0.220  0.714
+ios            209562.0       0.203  0.726
+large market   166888.0       0.204  0.724
+medium market   86525.0       0.206  0.730
+paid            66508.0       0.133  0.737
+small market   107369.0       0.203  0.724
 
 Permutation importance (drop in AUC when the feature is shuffled)
-sessions_14d               0.0423
-sessions_28d               0.0401
-days_since_last_session    0.0205
-sessions_7d                0.0169
-plan                       0.0083
-messages_sent_7d           0.0066
-messages_received_14d      0.0026
-profile_views_7d           0.0023
-tenure_days                0.0022
-messages_sent_14d          0.0022
-reachable                  0.0018
+sessions_28d               0.0387
+sessions_14d               0.0366
+days_since_last_session    0.0229
+sessions_7d                0.0129
+messages_sent_7d           0.0068
+plan                       0.0061
+messages_received_14d      0.0027
+messages_sent_14d          0.0026
 likes_sent_7d              0.0018
-
+reachable                  0.0016
+sessions_prev_7d           0.0015
+profile_views_7d           0.0015
 ## Unity Catalog registry after the run
 
 $ databricks registered-models get katie_febar_catalog.hearth_ml.lapse_model --include-aliases
-alias champion -> version 4
+alias champion -> version 5
 
 $ databricks model-versions list katie_febar_catalog.hearth_ml.lapse_model
 version 1  READY  Duplicate from a training run that serverless retried after a failure in its last cell. Do not use.
 version 2  READY  Duplicate from a training run that serverless retried after a failure in its last cell. Do not use.
 version 3  READY  Trained before the promotion gate was revised. Superseded, do not use.
-version 4  READY  Champion. Held-out week AUC 0.725 against 0.648 for the days-since-last-session rule, calibration error 0.007. Trained 2026-11-03.
+version 4  READY  Former champion. Its held-out week used labels skewed by a partial last day, fixed 2026-11-03. Replaced by version 5.
+version 5  READY  Champion. Held-out week 10/14 to 10/20: AUC 0.726 against 0.650 for the days-since-last-session rule, calibration error 0.006, within 0.001 of version 4. Trained 2026-11-03.
