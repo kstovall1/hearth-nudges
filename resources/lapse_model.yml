@@ -1,0 +1,38 @@
+# The lapse-risk model: its MLflow experiment, its Unity Catalog entry, and the job that trains it.
+# Retraining is on demand for now. Each run registers a new version, and the champion alias moves
+# only when the notebook's promotion gate passes.
+resources:
+  experiments:
+    lapse_experiment:
+      name: ${workspace.root_path}/lapse-model
+
+  registered_models:
+    lapse_model:
+      catalog_name: ${var.catalog}
+      schema_name: ${resources.schemas.hearth_ml.name}
+      name: lapse_model
+      comment: >-
+        Chance that a member active in the last 14 days has no session in the next 7. Trained on
+        hearth_gold.member_daily_features and lapse_labels, without sensitive attributes. predict
+        returns two columns; column 1 is the chance of lapsing. Use the champion alias.
+
+  jobs:
+    hearth_train_lapse:
+      name: hearth-train-lapse
+      tasks:
+        - task_key: train
+          max_retries: 0  # a retry would register a duplicate model version
+          environment_key: ml
+          notebook_task:
+            notebook_path: ../src/hearth_ml/train_lapse_model.py
+            base_parameters:
+              catalog: ${var.catalog}
+              experiment: ${resources.experiments.lapse_experiment.name}
+              model_name: lapse_model
+      environments:
+        - environment_key: ml
+          spec:
+            client: "4"
+            dependencies:
+              - mlflow>=3.1
+              - scikit-learn>=1.5

@@ -66,6 +66,7 @@ flowchart LR
 | `docs/build-log.md` | **The one record of decisions and trade-offs**, plus how AI was used, session by session |
 | `src/hearth_data/` | The synthetic data generator, built as a wheel and run by `resources/generator.job.yml` |
 | `src/hearth_pipeline/` | The SDP pipeline in SQL, one file per table under `bronze/`, `silver/` and `gold/` |
+| `src/hearth_ml/` | Model notebooks, run as serverless jobs. `train_lapse_model.py` trains and registers the lapse model |
 | `src/hearth_governance/` | Mask functions, the catalog grant and column tags, run by the `hearth-daily` job around the pipeline |
 | `docs/evidence/` | Run output committed as text: deploys, checks, pipeline runs |
 | `README.md` | Written in phase 4. Business outcome first, then architecture, run evidence, decisions and how AI was used |
@@ -126,8 +127,8 @@ Internal details (workspace URL, resource IDs, FE Bar scoring and rules, interna
 - [x] Commit pipeline run outputs as text
 
 ### Phase 2, intelligence and serving (11/3 to 11/9)
-- [ ] Feature table and lapse label
-- [ ] Train, track and register the lapse model
+- [x] Feature table and lapse label (`hearth_gold.member_daily_features`, `lapse_labels`)
+- [x] Train, track and register the lapse model (`hearth_ml.lapse_model@champion`)
 - [ ] Serving endpoint for live scoring, batch scoring step
 - [ ] Rules-based nudge and send-hour picker
 - [ ] `ai_query` copy generation and `ai_decide` copy check
