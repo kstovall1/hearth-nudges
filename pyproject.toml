@@ -22,6 +22,7 @@ dev = [
     "databricks-connect>=16.4,<17.4",
     "scipy>=1.18.1",
     "pytest>=9.2.0",
+    "psycopg[binary]>=3.2",
 ]
 
 [build-system]

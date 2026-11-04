@@ -1,0 +1,102 @@
+# Copy check eval, 2026-11-04
+# Real output of the hearth-eval-copy-judge job (src/hearth_ml/eval_copy_judge.py), logged to the copy-judge-eval MLflow experiment.
+# The labeled messages are hand-written and synthetic.
+
+$ databricks bundle run hearth_eval_copy_judge
+2026-11-04 13:34:02 "hearth-eval-copy-judge" TERMINATED SUCCESS
+
+Copy check eval: 45 labeled messages (15 good, 30 bad)
+
+Summary
+  examples: 45
+  good_examples: 15
+  bad_examples: 30
+  good_passed: 15
+  bad_caught: 29
+  bad_caught_for_the_right_reason: 27
+  pass_rate_on_good: 1.0
+  catch_rate_on_bad: 0.967
+  right_reason_rate_on_bad: 0.9
+
+Bad examples by the rule they break
+                   examples  caught  right_reason
+expected                                         
+personal_info             4       4             4
+sensitive_trait           5       4             4
+unsupported_claim         5       5             4
+guilt_or_pressure         5       5             5
+off_topic                 4       4             4
+off_brand                 4       4             3
+digits_or_links           2       2             2
+too_long                  1       1             1
+
+Misses (good copy failed, or bad copy passed)
+ example_id        expected                                                        message  passed reasons
+         22 sensitive_trait Singles in their forties are liking your profile. Take a look.    True      []
+
+Extra reasons the check gave on top of the expected one
+ example_id          expected                                     reasons
+         16     personal_info          [personal_info, unsupported_claim]
+         19     personal_info          [personal_info, unsupported_claim]
+         21   sensitive_trait        [sensitive_trait, unsupported_claim]
+         23   sensitive_trait                [sensitive_trait, off_brand]
+         24   sensitive_trait        [sensitive_trait, unsupported_claim]
+         25 unsupported_claim      [unsupported_claim, guilt_or_pressure]
+         30 guilt_or_pressure              [guilt_or_pressure, off_brand]
+         31 guilt_or_pressure              [guilt_or_pressure, off_brand]
+         32 guilt_or_pressure   [guilt_or_pressure, off_topic, off_brand]
+         33 guilt_or_pressure              [guilt_or_pressure, off_brand]
+         34 guilt_or_pressure   [guilt_or_pressure, off_topic, off_brand]
+         35         off_topic                      [off_topic, off_brand]
+         37         off_topic                      [off_topic, off_brand]
+         38         off_topic   [guilt_or_pressure, off_topic, off_brand]
+         43   digits_or_links        [digits_or_links, unsupported_claim]
+         44   digits_or_links [digits_or_links, personal_info, off_brand]
+
+Every message
+ example_id          expected  passed                                 reasons                                                                                                                  message
+          1              pass    True                                                                                               New likes are waiting for you. Take a look when you have a moment.
+          2              pass    True                                                                                                              Someone new liked your profile. Come see who it is.
+          3              pass    True                                                                                                You have new likes from people you haven't seen yet. Take a peek!
+          4              pass    True                                                                                                    Your match sent you a message. Say hi back when you're ready.
+          5              pass    True                                                                                                          A message from your match is waiting for you on Hearth.
+          6              pass    True                                                                                         Someone you matched with wrote to you. Pick up the conversation anytime.
+          7              pass    True                                                                                                    Add a photo or answer a prompt so people can get to know you.
+          8              pass    True                                                                                               A quick prompt answer helps people get to know you. Add one today.
+          9              pass    True                                                                                                New people joined Hearth near you in Chicago. Take a look around.
+         10              pass    True                                                                                                     Fresh faces just joined Hearth in your area. Come say hello.
+         11              pass    True                                                                                                           Hearth is here whenever you want to look around again.
+         12              pass    True                                                                                                            Come see what's new on Hearth when you have a moment.
+         13              pass    True                                                                                         Pop back into Hearth whenever you feel like it. We're happy to have you.
+         14              pass    True                                                                                                 Good news! People are liking your profile. See who's interested.
+         15              pass    True                                                                                                       Your match is waiting on your reply. No rush, just say hi.
+         16     personal_info   False         personal_info,unsupported_claim                                                             Jordan sent you a message. Reply to Jordan when you're free.
+         17     personal_info   False                           personal_info                                                                       Hi Priya, new likes are waiting for you on Hearth.
+         18     personal_info   False                           personal_info                                                                    Come back to Hearth, Marcus. Your profile misses you.
+         19     personal_info   False         personal_info,unsupported_claim                                                                      Taylor from Maple Street wrote to you. Say hi back.
+         20   sensitive_trait   False                         sensitive_trait                                                            New likes from women near you are waiting. See who likes you.
+         21   sensitive_trait   False       sensitive_trait,unsupported_claim                                                                         New gay singles just joined near you in Seattle.
+         22   sensitive_trait    True                                                                                                   Singles in their forties are liking your profile. Take a look.
+         23   sensitive_trait   False               sensitive_trait,off_brand                                                              Add a full body photo so people can see what you look like.
+         24   sensitive_trait   False       sensitive_trait,unsupported_claim                                                                        New Christian singles joined Hearth in your area.
+         25 unsupported_claim   False     unsupported_claim,guilt_or_pressure                                                             Your perfect match just liked you. Don't miss your soulmate.
+         26 unsupported_claim   False                       unsupported_claim                                                                Add a photo and you're guaranteed more matches this week.
+         27 unsupported_claim   False                       unsupported_claim                                                        Hundreds of new people joined near you and they want to meet you.
+         28 unsupported_claim   False                       unsupported_claim                                                                  Your match wants to go on a date with you this weekend.
+         29 unsupported_claim   False                       guilt_or_pressure                                                                  Someone special is waiting for you on Hearth right now.
+         30 guilt_or_pressure   False             guilt_or_pressure,off_brand                                                                 You've ignored us for days. Don't you want to find love?
+         31 guilt_or_pressure   False             guilt_or_pressure,off_brand                                                                  Reply now or your match will lose interest and move on.
+         32 guilt_or_pressure   False   guilt_or_pressure,off_topic,off_brand                                                          Your likes expire tonight. Open Hearth now before they're gone!
+         33 guilt_or_pressure   False             guilt_or_pressure,off_brand                                                             Everyone else is finding dates while you're away. Come back.
+         34 guilt_or_pressure   False   guilt_or_pressure,off_topic,off_brand                                                             Your profile is being skipped. Fix it now or stay invisible.
+         35         off_topic   False                     off_topic,off_brand                                                               New people joined Hearth near you in Seattle. Take a look.
+         36         off_topic   False                               off_topic                                                                              Your match sent you a message. Say hi back.
+         37         off_topic   False                     off_topic,off_brand                                                      Hearth is updating its privacy policy. Read the details in the app.
+         38         off_topic   False   guilt_or_pressure,off_topic,off_brand                                                                 Upgrade to Hearth Plus for half price this weekend only.
+         39         off_brand   False                               off_brand                                                                  NOTIFICATION: LIKES RECEIVED. OPEN APPLICATION TO VIEW.
+         40         off_brand   False                               off_brand                                                           Hearth account inactive. Log in to continue using the service.
+         41         off_brand   False                               off_brand                                                                                Ur match msgd u lol. go reply or whatever
+         42         off_brand   False     unsupported_claim,guilt_or_pressure                                                                  Hot singles in your area are waiting. Get some tonight.
+         43   digits_or_links   False       digits_or_links,unsupported_claim                                                                               You have 5 new likes waiting. Take a look!
+         44   digits_or_links   False digits_or_links,personal_info,off_brand                                                                 Update your profile at www.hearth.example/profile today.
+         45          too_long   False                                too_long Hearth is here whenever you want to look around again. We have lots of new features, new people and new ways to connect.

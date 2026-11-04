@@ -1,0 +1,34 @@
+# The copy check's eval: a labeled set of good and bad messages run through hearth_ml.check_nudge_copy,
+# logged to MLflow. Rerun after changing the check's questions or thresholds in src/hearth_genai/functions.sql.
+resources:
+  experiments:
+    copy_judge_experiment:
+      name: ${workspace.root_path}/copy-judge-eval
+
+  jobs:
+    hearth_eval_copy_judge:
+      name: hearth-eval-copy-judge
+      tasks:
+        - task_key: create_copy_functions
+          sql_task:
+            warehouse_id: ${var.warehouse_id}
+            file:
+              path: ../src/hearth_genai/functions.sql
+            parameters:
+              catalog: ${var.catalog}
+        - task_key: eval
+          depends_on:
+            - task_key: create_copy_functions
+          max_retries: 0
+          environment_key: ml
+          notebook_task:
+            notebook_path: ../src/hearth_ml/eval_copy_judge.py
+            base_parameters:
+              catalog: ${var.catalog}
+              experiment: ${resources.experiments.copy_judge_experiment.name}
+      environments:
+        - environment_key: ml
+          spec:
+            client: "4"
+            dependencies:
+              - mlflow>=3.1

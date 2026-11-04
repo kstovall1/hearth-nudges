@@ -1,6 +1,6 @@
-# The daily flow: mask functions, then the pipeline, then lapse scoring and the nudge picker alongside the
-# catalog grant and column tags. Copy and the Lakebase sync join in later Phase 2 steps. The schedule stays paused
-# until the flow is complete; run it by hand meanwhile.
+# The daily flow: mask and copy functions, then the pipeline, lapse scoring, the nudge picker and copy, the
+# Lakebase sync and a notification service check, alongside the catalog grant and column tags. The schedule
+# stays paused; run it by hand.
 resources:
   jobs:
     hearth_daily:
@@ -54,6 +54,42 @@ resources:
               catalog: "{{job.parameters.catalog}}"
               value_of_reach: "{{job.parameters.value_of_reach}}"
 
+        - task_key: create_copy_functions
+          sql_task:
+            warehouse_id: ${var.warehouse_id}
+            file:
+              path: ../src/hearth_genai/functions.sql
+            parameters:
+              catalog: "{{job.parameters.catalog}}"
+
+        - task_key: write_copy
+          depends_on:
+            - task_key: pick_nudges
+            - task_key: create_copy_functions
+          max_retries: 0  # each attempt calls two models for every send
+          sql_task:
+            warehouse_id: ${var.warehouse_id}
+            file:
+              path: ../src/hearth_genai/copy.sql
+            parameters:
+              catalog: "{{job.parameters.catalog}}"
+
+        - task_key: sync_lakebase
+          depends_on:
+            - task_key: write_copy
+          pipeline_task:
+            pipeline_id: ${var.nba_sync_pipeline}
+
+        - task_key: simulate_notification_service
+          depends_on:
+            - task_key: sync_lakebase
+          max_retries: 0
+          environment_key: serving
+          notebook_task:
+            notebook_path: ../src/hearth_serving/notification_simulator_job.py
+            base_parameters:
+              lookups: "500"
+
         - task_key: apply_access
           depends_on:
             - task_key: refresh_pipeline
@@ -71,3 +107,9 @@ resources:
               - mlflow>=3.1
               - scikit-learn>=1.5
               - scipy>=1.11
+        - environment_key: serving
+          spec:
+            client: "4"
+            dependencies:
+              - psycopg[binary]>=3.2
+              - databricks-sdk>=0.81

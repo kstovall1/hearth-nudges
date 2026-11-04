@@ -1,0 +1,89 @@
+# Lakebase serving evidence, 2026-11-04
+# Real output. The full hearth-daily run, the synced table's state, and src/hearth_serving/notification_simulator.py run two ways.
+
+## The full daily flow, raw files to Lakebase
+
+$ databricks bundle run hearth_daily
+2026-11-04 14:13:44 "hearth-daily" TERMINATED SUCCESS
+
+task durations, in start order (the simulator's first attempt hit a platform SIGABRT and the platform retried it):
+  create_copy_functions	SUCCESS	7s
+  create_masks	SUCCESS	5s
+  refresh_pipeline	SUCCESS	72s
+  apply_access	SUCCESS	9s
+  score_lapse	SUCCESS	65s
+  pick_nudges	SUCCESS	70s
+  write_copy	SUCCESS	440s
+  sync_lakebase	SUCCESS	52s
+  simulate_notification_service	FAILED	38s
+  simulate_notification_service	SUCCESS	35s
+
+## Freshness: copy written in Delta, then synced to Lakebase
+
+attempt  messages  passed  first_checked             last_checked
+1        4449      4305    2026-11-04T19:11:18.192Z  2026-11-04T19:11:18.192Z
+2        264       244     2026-11-04T18:43:33.859Z  2026-11-04T19:11:18.192Z
+source_copy_checked_at
+2026-11-04T19:11:21.432Z
+sync state: SYNCED_TABLE_ONLINE_NO_PENDING_UPDATE
+last sync started 2026-11-04T19:12:07.892397Z, ended 2026-11-04T19:12:11.390066Z, source commit 2026-11-04T19:11:25Z (version 6)
+
+## Notification service simulator, in region (the hearth-daily simulate_notification_service task)
+
+## Connect (from serverless job in region)
+
+OAuth token from the workspace, TLS connection to Lakebase in 76 ms (includes waking the compute if it had scaled to zero)
+hearth.next_best_action: 34,365 members, 4,449 sends for 2026-10-28, decided at 2026-10-28 07:00 UTC
+copy status of sends: {'passed': 4439, 'needs_review': 10}
+
+## Index for the dispatcher
+
+send_at_utc index on sends: in place (synced tables allow read queries and indexes only)
+
+## Point lookups by member_id, 500 random members plus 20 unknown ids
+
+p50 3.1 ms, p95 7.6 ms, p99 13.2 ms, max 20.1 ms
+answers: {'hold': 440, 'send (passed)': 60}, not found: 20 (a new member falls back to live scoring on the hearth-lapse endpoint)
+plan: Index Scan using "__db_tmp_<id>_pkey" on partition next_best_action
+
+example answer for m_047817 in 15.0 ms: action=hold, hold_reason=active, nudge=None, send_at=None, copy_status=None
+
+example answer for m_000001 in 3.1 ms: action=send, hold_reason=None, nudge=match_waiting, send_at=2026-10-28 18:00:00+00:00, copy_status=passed
+  copy: A match sent you a message. Whenever you're ready, take a look and say hello.
+
+## Dispatcher: sends due in each hour of the decision day
+
+30 hourly batches: p50 3.6 ms, p95 12.5 ms, p99 14.1 ms, max 14.1 ms
+dispatched 4,439 pushes with checked copy, skipped 10 waiting for review
+busiest hour starts 2026-10-29 01:00 UTC with 669 sends
+plan: Index Scan using partition_send_at_utc_idx on partition next_best_action
+## Notification service simulator, from a laptop over the internet
+
+$ uv run python src/hearth_serving/notification_simulator.py
+## Connect (from laptop)
+
+OAuth token from the workspace, TLS connection to Lakebase in 723 ms (includes waking the compute if it had scaled to zero)
+hearth.next_best_action: 34,365 members, 4,449 sends for 2026-10-28, decided at 2026-10-28 07:00 UTC
+copy status of sends: {'passed': 4439, 'needs_review': 10}
+
+## Index for the dispatcher
+
+send_at_utc index on sends: in place (synced tables allow read queries and indexes only)
+
+## Point lookups by member_id, 500 random members plus 20 unknown ids
+
+p50 107.8 ms, p95 112.8 ms, p99 163.6 ms, max 425.8 ms
+answers: {'hold': 440, 'send (passed)': 60}, not found: 20 (a new member falls back to live scoring on the hearth-lapse endpoint)
+plan: Index Scan using "__db_tmp_<id>_pkey" on partition next_best_action
+
+example answer for m_047817 in 106.5 ms: action=hold, hold_reason=active, nudge=None, send_at=None, copy_status=None
+
+example answer for m_000001 in 111.3 ms: action=send, hold_reason=None, nudge=match_waiting, send_at=2026-10-28 18:00:00+00:00, copy_status=passed
+  copy: A match sent you a message. Whenever you're ready, take a look and say hello.
+
+## Dispatcher: sends due in each hour of the decision day
+
+30 hourly batches: p50 108.5 ms, p95 117.1 ms, p99 216.0 ms, max 216.0 ms
+dispatched 4,439 pushes with checked copy, skipped 10 waiting for review
+busiest hour starts 2026-10-29 01:00 UTC with 669 sends
+plan: Index Scan using partition_send_at_utc_idx on partition next_best_action

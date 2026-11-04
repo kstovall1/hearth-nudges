@@ -68,6 +68,8 @@ flowchart LR
 | `src/hearth_pipeline/` | The SDP pipeline in SQL, one file per table under `bronze/`, `silver/` and `gold/` |
 | `src/hearth_ml/` | Model notebooks, run as serverless jobs. `train_lapse_model.py` trains and registers the lapse model, `score_lapse.py` writes daily scores, `pick_nudges.py` decides tomorrow's nudges with the rules in `picker.py`, `backtest_picker.py` scores those rules |
 | `tests/` | `uv run pytest`. The picker rules are tested locally, including against a full simulation |
+| `src/hearth_genai/` | The copy functions (`functions.sql`: brief, write with Haiku, check with OpenJev) and the daily copy step (`copy.sql`) |
+| `src/hearth_serving/` | The notification service simulator, which reads next actions from Lakebase over Postgres |
 | `src/hearth_governance/` | Mask functions, the catalog grant and column tags, run by the `hearth-daily` job around the pipeline |
 | `docs/evidence/` | Run output committed as text: deploys, checks, pipeline runs |
 | `README.md` | Written in phase 4. Business outcome first, then architecture, run evidence, decisions and how AI was used |
@@ -132,11 +134,10 @@ Internal details (workspace URL, resource IDs, FE Bar scoring and rules, interna
 - [x] Train, track and register the lapse model (`hearth_ml.lapse_model@champion`, version 5)
 - [x] Serving endpoint for live scoring (`hearth-lapse`), batch scoring step (`hearth_gold.member_lapse_scores`)
 - [x] Rules-based nudge and send-hour picker (`hearth_gold.nudge_decisions`, `hearth_serving.next_best_action`, backtested)
-- [ ] Carry likes and messages waiting in the members export, so the picker can see them for members quiet since before the data
-- [ ] `ai_query` copy generation and `ai_decide` copy check
-- [ ] Next-best-action table synced to Lakebase
-- [ ] Notification service simulator with latency output
-- [ ] Commit training metrics, scoring output and sample copy as text (training and scoring done 11/3, copy comes with the copy step)
+- [x] `ai_query` copy generation and `ai_decide` copy check (`hearth_ml.write_nudge_copy`, `check_nudge_copy`, judge eval)
+- [x] Next-best-action table synced to Lakebase (`hearth_lakebase.hearth.next_best_action`, triggered by `hearth-daily`)
+- [x] Notification service simulator with latency output (laptop and in region)
+- [x] Commit training metrics, scoring output and sample copy as text
 
 ### Phase 3, Genie and app (11/10 to 11/16)
 - [ ] Genie Agent over the gold tables with instructions and sample questions
@@ -192,18 +193,26 @@ Things that cost time on this build. The build log has the full story; this list
 - Masks run as the pipeline owner during a refresh. A mask on a pipeline source table writes masked values downstream, so mask the first table other people read, not its source.
 - Unity Catalog group membership changes take up to about 4 minutes to reach SQL. Poll `is_account_group_member()` before testing access.
 - Groups made with `databricks groups create` are workspace-local, and grants reject them. Create account groups through the workspace endpoint `/api/2.0/account/scim/v2/Groups`.
-- Serverless jobs retry a failed task once on their own. Set `max_retries: 0` on anything that isn't idempotent, like model registration.
+- Serverless jobs retry a failed task once on their own. Set `max_retries: 0` on anything that isn't idempotent, like model registration. A platform crash (SIGABRT) is still retried even with `max_retries: 0`, so keep tasks safe to rerun.
 - Named job parameters with hyphens arrive with underscores (`end-date` becomes `--end_date`). Accept both, or use underscores.
 - Zip writes, including `np.savez`, fail on Volume paths because they seek. Write locally, then copy.
 - Serving endpoints pin a model version and can't follow an alias. Rolling out a new champion means updating `lapse_model_version` and deploying.
 - System lineage covers table to table, but not landing files to bronze. Bronze rows keep `_source_file` for that link.
 - Bundle resource keys must be unique across resource types, for example an experiment and a model can't both be `lapse_model`.
 - Notebooks deployed by the bundle can `import` a sibling `.py` file, like `import picker`. Keep shared logic there so tests run it locally.
+- `ai_query(..., failOnError => false)` returns a struct with `result` and `errorMessage`, not `response`.
+- `ai_query`'s `modelParameters` must be a constant. To compare settings, make separate calls.
+- Haiku 5.5 through `ai_query` rejects `temperature` and both JSON response formats. Its reasoning tokens count toward `max_tokens`: at 300, about half the calls returned an empty result with no error. Use `max_tokens` 1000 with `reasoning_effort` `low`.
+- `ai_decide`'s boolean question type is spelled `noul` in the docs, and that's what works.
+- The `febar_lakebase` catalog on the shared metastore belongs to someone else's workspace. Ours is `hearth_lakebase`.
+- `CREATE CATALOG` for Lakebase comes from an FEVM metastore grant (use case `lakebase`, up to 5 days). Ask before requesting one. Catalogs and syncs keep working after it expires.
+- Synced tables can't be bundle resources yet. `hearth_lakebase.hearth.next_best_action` was made with `databricks postgres create-synced-table`, and the daily job finds its pipeline by name with a bundle lookup.
 
 **Data**
 - The last landed day can leave a partial next day, from sessions that run past midnight. Anything date-bounded should end at the last day with a session start, as gold does.
 - Streaming dedup needs a watermark, and the planted future-dated events would push it years ahead. Silver dedups in materialized views instead.
-- The generator's starting state (likes and messages waiting before the window) isn't in any event or export. Event-based eligibility misses it for members quiet since before the data.
+- The generator's starting state (likes and messages waiting before the window) isn't in any event or export. Event-based eligibility misses it for members quiet since before the data. **Left as an intentional gap (11/4):** the picker under-sends `new_likes` to those members, which is the safe direction.
+- Tables that keep history per day should replace that day on rerun, not `MERGE` into it. A `MERGE` leaves rows from the earlier run that this run didn't write, like second copy attempts.
 - Planted uplift in `generator_truth` is before the 100% ceiling. Members who'd come back anyway can't gain the full effect, so cap it at 1 minus `baseline_return_72h` when scoring.
 
 **Tools**

@@ -264,3 +264,34 @@ How this build was made: what was decided, why, and where AI helped. This feeds 
 
 **Prompts that shaped the work**
 - "What do we need to build next?" then "Yes."
+
+## 2026-11-04 · Copy, Lakebase sync and the notification service
+
+**What happened**
+- Katie chose to leave the export gap as an intentional gap: the picker under-sends `new_likes` to members quiet since before the data, which is the safe direction. It's noted in the gotchas.
+- Put the copy logic in three Unity Catalog SQL functions in `src/hearth_genai/functions.sql`. `nudge_brief` turns a send into the facts a message may use. `write_nudge_copy` writes it with Claude Haiku through `ai_query`. `check_nudge_copy` scores it with OpenJev through `ai_decide` for personal information, sensitive traits, unsupported claims, guilt or pressure, topic and tone, plus length, one-line and digit-or-link rules.
+- Getting Haiku 5.5 to write reliably took five rounds. It rejects `temperature` and both JSON response formats. At 300 tokens, about half the calls came back empty with no error. A rule-by-rule test showed more rules meant more empty results, which pointed to hidden reasoning using up the budget. With `max_tokens` 1000 and `reasoning_effort` `low`, 30 of 30 test calls returned one clean line.
+- Measured the check before using it. On 45 hand-written messages it passed 15 of 15 good ones and caught 29 of 30 bad ones, 27 for the exact rule broken. It missed "Singles in their forties", age written as a phrase. I didn't tune the instruction on the same set, because then the eval would stop measuring anything. The upstream control is that the brief never contains age. Results are logged to MLflow. Evidence: `docs/evidence/copy-judge-eval.txt`.
+- `copy.sql` runs in `hearth-daily` after the picker. Messages that fail get one rewrite. In the final run, 4,305 of 4,449 passed first time (96.8%), and 4,439 passed after rewrites. The other 10 are marked `needs_review` for the lifecycle console. Every failure came from the length, one-line or digit rules, mostly Haiku drafting out loud. OpenJev flagged no real message on any judgment rule. Evidence: `docs/evidence/copy-daily.txt`.
+- Lakebase needed `CREATE CATALOG`. FEVM showed no grant, current or past. With Katie's go-ahead, I requested the `lakebase` grant for 5 days, auto-approved. Registered the `dev` branch as `hearth_lakebase` (`febar_lakebase` belongs to another workspace), then created the triggered synced table `hearth_lakebase.hearth.next_best_action`. Its first snapshot copied 34,365 rows in 10 seconds.
+- `hearth-daily` now refreshes the sync after copy, then runs the notification service simulator in region. The full flow ran in about 14 minutes, raw files through to Lakebase, and copy is most of that at 7 minutes 20. The sync's last run took 4 seconds and started 46 seconds after the copy commit.
+- The simulator plays the in-house service. It connects with an OAuth token from the workspace, with no stored password, looks up next actions by `member_id`, and pulls each hour's sends. In region: connect in 76 ms, point lookups p50 3.1 ms and p95 7.6 ms, hourly batches p50 3.6 ms, all on indexes. From a laptop the same lookups take about 108 ms, almost all of it network. It dispatched all 4,439 checked messages and skipped the 10 waiting for review. Unknown member IDs return nothing, which is where a new member falls back to the `hearth-lapse` endpoint. Evidence: `docs/evidence/lakebase-serving.txt`.
+- The rerun found a bug. `nudge_copy` kept the first run's second attempts, because `MERGE` only touches rows the new run writes. A rerun now deletes the day and inserts it again. I removed the 120 stale rows. History and serving now match for all 4,449 sends.
+
+**Decisions**
+
+| Decision | Choice | Why |
+|---|---|---|
+| Where the copy logic lives | Unity Catalog SQL functions | One governed prompt and one check for the daily job, the eval and the app. When a marketer edits copy in Phase 3, it goes through the same check |
+| What the models see | Nudge facts only: nudge type, metro, days away. Never names, contact details, age or sensitive attributes | The cheapest way to keep PII and sensitive traits out of copy is to never send them. The check is the second line, not the first |
+| Copy model settings | Haiku 5.5, `max_tokens` 1000, `reasoning_effort` `low` | The setting that returned a message every time in testing, 30 of 30. `none` wasn't compared fairly: my side-by-side ran at 300 tokens, where most calls in both arms came back empty |
+| Check | OpenJev through `ai_decide`, five yes-or-no questions and a tone score, plus character rules | Structured probabilities are cheaper and steadier than asking a chat model for a verdict. The thresholds (0.5, and tone at least 1 of 2) passed every good example in the eval |
+| Failed copy | One rewrite, then `needs_review`. Never sent without passing | Fixes most failures for one more call, and a person sees the rest. No fallback to template copy, so nothing unchecked reaches a member |
+| Each step saved to a table | Briefs, written copy and checks each saved before the next step | `ai_query` isn't deterministic. If a query re-ran it, the check would score a different message than the one stored |
+| Sync mode | Triggered, refreshed by the daily job | The serving table changes once a day. Continuous would pay for a pipeline that idles all day |
+| Lakebase branch | `dev` | The branch the project was set up with in Phase 0 |
+| Simulator compute | Run from a laptop and as a serverless job in region | The laptop number is what Katie sees. The in-region number is what a service next to Lakebase sees, and that's the one for the Platform Engineering conversation |
+
+**Prompts that shaped the work**
+- "I don't want to fix the gap. Leave it as a gap. Intentional. Do the other stuff next."
+- Answer to the FEVM grant question: "Submit it."

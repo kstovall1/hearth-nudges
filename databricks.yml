@@ -19,6 +19,10 @@ variables:
   lapse_model_version:
     description: Version of hearth_ml.lapse_model the serving endpoint serves. Set it to the champion version
     default: "5"
+  nba_sync_pipeline:
+    description: The pipeline behind the hearth_lakebase.hearth.next_best_action synced table, made by create-synced-table
+    lookup:
+      pipeline: "Synced table: hearth_lakebase.hearth.next_best_action y20Od6"
   warehouse_id:
     description: SQL warehouse for the job's SQL tasks
     lookup:

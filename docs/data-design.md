@@ -151,7 +151,9 @@ The bad rows are copies of real events with the defect added, so dropping them l
 | Silver | Typed `members`, `app_events` (deduplicated, bad rows dropped), `app_events_quarantine`, `notification_decisions`, `notification_events` (deduplicated), `subscription_events`, plus `sessions`, `member_daily_activity` and `notification_funnel` (decision → delivered → opened → returned within 72h → opted out → upgraded) |
 | Gold | `member_daily_features`, `lapse_labels`, `nudge_outcomes`, `campaign_daily_kpis`, `reach_daily` |
 | ML | Lapse model trained on `member_daily_features` + `lapse_labels`, scored daily into `hearth_gold.member_lapse_scores` and live by the `hearth-lapse` endpoint. The rules picker reads the nudge test readout (`hearth_gold.nudge_segment_effects`) and writes `hearth_gold.nudge_decisions` and `hearth_serving.next_best_action`. Uplift model (Phase 2) trained on `nudge_outcomes` |
-| Genie | `campaign_daily_kpis`, `nudge_outcomes`, `notification_funnel`, `member_lapse_scores`, `nudge_segment_effects`, `nudge_decisions` |
+| GenAI | `hearth_ml.write_nudge_copy` (Claude Haiku) writes a message for each send from nudge facts only, and `hearth_ml.check_nudge_copy` (OpenJev via `ai_decide`) checks it. Every attempt is in `hearth_gold.nudge_copy` |
+| Lakebase | `hearth_serving.next_best_action` syncs to `hearth_lakebase.hearth.next_best_action` on the `dev` branch, where the notification service reads it by `member_id` |
+| Genie | `campaign_daily_kpis`, `nudge_outcomes`, `notification_funnel`, `member_lapse_scores`, `nudge_segment_effects`, `nudge_decisions`, `nudge_copy` |
 
 **Lapse label.** A member counts as lapsed on date *d* if they had a session in the 14 days up to *d* and none in the 7 days after it. Features only use data up to *d*, and the train/test split is by date so nothing from the future leaks in. The measured positive rate is 21%, in the generator check and in `hearth_gold.lapse_labels`.
 
@@ -173,7 +175,7 @@ Built 11/3. Evidence: `docs/evidence/governance.txt`.
 - Masks are declared in the pipeline's `CREATE` statement, because pipeline tables can't be altered. The functions are in `src/hearth_governance/masks.sql`. The `hearth-daily` job creates them before the pipeline runs, and applies the catalog grant and tags after it.
 - During a pipeline refresh, masks run as the pipeline owner. That's why bronze isn't masked: silver would store `***`. Gold never reads the masked columns.
 - Unity Catalog lineage traces `hearth_bronze.members` to silver and on to every gold table. It doesn't record the landing files, so each bronze row keeps `_source_file`.
-- Generated copy is checked for PII before it can reach Lakebase (Phase 2).
+- Copy prompts get nudge facts only: never names, contact details, age or sensitive attributes. Generated copy is checked for personal information and sensitive traits before it's marked ready to send (built 11/4).
 
 ## How it gets generated
 
