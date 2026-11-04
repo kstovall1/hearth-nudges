@@ -12,22 +12,27 @@ from validate_landing import run
 
 
 def statements(sql):
-    # Split on semicolons that end a line, outside single-quoted strings
-    out, buf, quoted = [], [], False
-    for i, ch in enumerate(sql):
+    """Split on semicolons that end a line, outside quoted strings and $$ blocks. Skips -- comment lines."""
+    out, buf, quoted, dollar = [], [], False, False
+    lines = [l for l in sql.splitlines(keepends=True) if dollar or not l.strip().startswith("--")]
+    text = "".join(lines)
+    i = 0
+    while i < len(text):
+        if text.startswith("$$", i):
+            dollar = not dollar
+            buf.append("$$")
+            i += 2
+            continue
+        ch = text[i]
         buf.append(ch)
-        if ch == "'":
+        if ch == "'" and not dollar:
             quoted = not quoted
-        elif ch == ";" and not quoted and (i + 1 == len(sql) or sql[i + 1] == "\n"):
+        elif ch == ";" and not quoted and not dollar and (i + 1 == len(text) or text[i + 1] == "\n"):
             out.append("".join(buf))
             buf = []
+        i += 1
     out.append("".join(buf))
-    cleaned = []
-    for s in out:
-        body = "\n".join(l for l in s.splitlines() if not l.strip().startswith("--")).strip().rstrip(";").strip()
-        if body:
-            cleaned.append(body)
-    return cleaned
+    return [s.strip().rstrip(";").strip() for s in out if s.strip().rstrip(";").strip()]
 
 
 def main():

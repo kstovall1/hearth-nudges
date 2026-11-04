@@ -295,3 +295,30 @@ How this build was made: what was decided, why, and where AI helped. This feeds 
 **Prompts that shaped the work**
 - "I don't want to fix the gap. Leave it as a gap. Intentional. Do the other stuff next."
 - Answer to the FEVM grant question: "Submit it."
+
+## 2026-11-04 · Metric views and the Genie Agent
+
+**What happened**
+- Katie approved the design: four metric views as the governed KPI layer, with the Genie Agent on top of them and the nudge test readout.
+- Wrote `src/hearth_semantic/metric_views.sql`. It covers `campaign_metrics` (decisions, returns, return rate, opt-out rate, treated and holdout return rates, uplift and extra returns against the holdout), `reach_metrics` (reach at the start and end of a period, opt-outs, pushes per active member), `lapse_risk_metrics` (scores joined to features for cohort cuts) and `nudge_plan_metrics` (the picker's sends, holds and expected extra comebacks). Every dimension and measure has a comment, display name and synonyms. They all matched the existing evidence: `match_waiting` uplift +6.7 points, weekly opt-outs, lapse risk by cohort, and 4,449 planned sends. Evidence: `docs/evidence/metric-views.txt`.
+- `hearth-daily` now recreates the views after the pipeline. `scripts/run_sql_file.py` now handles `$$` blocks and comment lines.
+- Defined the agent in `src/hearth_semantic/genie_space.py`: a description, six sample questions, column configs with entity matching on the categorical dimensions, six example SQL statements (one per query shape), 12 benchmarks and one short text instruction. `scripts/deploy_genie_space.py` runs every SQL statement on the warehouse before it deploys, and all 18 returned rows.
+- The first deploy failed at the permission step, because account groups need a workspace assignment before workspace permissions accept them. I assigned `hearth_marketing` and `hearth_pii_readers` to the workspace as `USER`. `hearth_marketing` has CAN RUN on the agent and CAN USE on the warehouse.
+- Benchmarks: 12 of 12 on the first run. After the partial-week note, one run went 11 of 12. Genie computed "share nudged" itself instead of using `Send Rate`. I added synonyms and a comment to that measure, and the question passed 3 of 3 scoped runs. The final full run was 12 of 12. Evidence: `docs/evidence/genie.txt`.
+- Asked all six sample questions through the Conversation API, and each was answered from the governed measures. For "Which nudges brought back the most members last week?", Genie used the latest full week and ranked by extra returns against the holdout, with `new_likes` first and `we_miss_you` below its holdout. "When did opt-outs start rising?" always names the jumps in the weeks of 9/28 and 10/5, when the blast tripled. But how it words the first rise changes between runs, so I left that as a known limitation.
+
+**Decisions**
+
+| Decision | Choice | Why |
+|---|---|---|
+| Semantic layer | Unity Catalog metric views under Genie, not raw gold tables | Rates and uplift are defined once, so Genie, the console and any dashboard compute them the same way. Genie can't re-derive a return rate from counts and get it subtly wrong |
+| Uplift measures | Defined only on nudge test rows, null for blasts | Blasts have no holdout. Mixing blast pushes into the treated rate would make uplift meaningless |
+| Agent sources | Four metric views and the test readout, no member-level tables | Genie can only return aggregates, so PII and sensitive attributes are out of reach by construction, not only by masks |
+| Text instruction | One block of about 1,600 characters, for relative dates, what "brought back" means, partial weeks and summary format | These are global behaviors. Table, measure and column rules went into the metric view metadata and column configs instead |
+| Fixing a wrong answer | A synonym on the governed measure, not another text rule | The skill's order: structured surfaces first. It fixed the question without adding prompt text |
+| Relative dates | Relative to the latest data, falling back to the latest full period | The data ends 10/27 and today is 11/4. The Phase 5 rerun before the demo makes "last week" literal |
+| Deploying | A script that finds the space by title | Genie spaces aren't bundle resources. Keeps the space id out of the repo |
+
+**Prompts that shaped the work**
+- "Go to phase 3."
+- Approval of the Genie design: "Build it as proposed."

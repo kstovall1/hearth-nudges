@@ -1,6 +1,6 @@
-# The daily flow: mask and copy functions, then the pipeline, lapse scoring, the nudge picker and copy, the
-# Lakebase sync and a notification service check, alongside the catalog grant and column tags. The schedule
-# stays paused; run it by hand.
+# The daily flow: mask and copy functions, then the pipeline, the metric views Genie reads, lapse scoring, the
+# nudge picker and copy, the Lakebase sync and a notification service check, alongside the catalog grant and
+# column tags. The schedule stays paused; run it by hand.
 resources:
   jobs:
     hearth_daily:
@@ -30,6 +30,16 @@ resources:
             - task_key: create_masks
           pipeline_task:
             pipeline_id: ${resources.pipelines.hearth_pipeline.id}
+
+        - task_key: create_metric_views
+          depends_on:
+            - task_key: refresh_pipeline
+          sql_task:
+            warehouse_id: ${var.warehouse_id}
+            file:
+              path: ../src/hearth_semantic/metric_views.sql
+            parameters:
+              catalog: "{{job.parameters.catalog}}"
 
         - task_key: score_lapse
           depends_on:

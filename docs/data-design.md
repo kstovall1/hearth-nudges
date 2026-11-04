@@ -153,7 +153,8 @@ The bad rows are copies of real events with the defect added, so dropping them l
 | ML | Lapse model trained on `member_daily_features` + `lapse_labels`, scored daily into `hearth_gold.member_lapse_scores` and live by the `hearth-lapse` endpoint. The rules picker reads the nudge test readout (`hearth_gold.nudge_segment_effects`) and writes `hearth_gold.nudge_decisions` and `hearth_serving.next_best_action`. Uplift model (Phase 2) trained on `nudge_outcomes` |
 | GenAI | `hearth_ml.write_nudge_copy` (Claude Haiku) writes a message for each send from nudge facts only, and `hearth_ml.check_nudge_copy` (OpenJev via `ai_decide`) checks it. Every attempt is in `hearth_gold.nudge_copy` |
 | Lakebase | `hearth_serving.next_best_action` syncs to `hearth_lakebase.hearth.next_best_action` on the `dev` branch, where the notification service reads it by `member_id` |
-| Genie | `campaign_daily_kpis`, `nudge_outcomes`, `notification_funnel`, `member_lapse_scores`, `nudge_segment_effects`, `nudge_decisions`, `nudge_copy` |
+| Semantic layer | Metric views in `hearth_gold`: `campaign_metrics` (returns, uplift and extra returns against the holdout, opt-outs), `reach_metrics` (reach, pushes per active member), `lapse_risk_metrics` (risk by cohort) and `nudge_plan_metrics` (the picker's plan). Each KPI is defined once |
+| Genie | The "Hearth Campaigns" agent reads the four metric views and `nudge_segment_effects`. Aggregates only, so no member-level row or PII is reachable |
 
 **Lapse label.** A member counts as lapsed on date *d* if they had a session in the 14 days up to *d* and none in the 7 days after it. Features only use data up to *d*, and the train/test split is by date so nothing from the future leaks in. The measured positive rate is 21%, in the generator check and in `hearth_gold.lapse_labels`.
 

@@ -70,6 +70,7 @@ flowchart LR
 | `tests/` | `uv run pytest`. The picker rules are tested locally, including against a full simulation |
 | `src/hearth_genai/` | The copy functions (`functions.sql`: brief, write with Haiku, check with OpenJev) and the daily copy step (`copy.sql`) |
 | `src/hearth_serving/` | The notification service simulator, which reads next actions from Lakebase over Postgres |
+| `src/hearth_semantic/` | The metric views (`metric_views.sql`) and the Genie Agent definition (`genie_space.py`), deployed by `scripts/deploy_genie_space.py` |
 | `src/hearth_governance/` | Mask functions, the catalog grant and column tags, run by the `hearth-daily` job around the pipeline |
 | `docs/evidence/` | Run output committed as text: deploys, checks, pipeline runs |
 | `README.md` | Written in phase 4. Business outcome first, then architecture, run evidence, decisions and how AI was used |
@@ -140,7 +141,7 @@ Internal details (workspace URL, resource IDs, FE Bar scoring and rules, interna
 - [x] Commit training metrics, scoring output and sample copy as text
 
 ### Phase 3, Genie and app (11/10 to 11/16)
-- [ ] Genie Agent over the gold tables with instructions and sample questions
+- [x] Genie Agent over the gold tables with instructions and sample questions ("Hearth Campaigns", on four metric views, benchmark 12 of 12)
 - [ ] Lifecycle console (segments, next-action queue, copy review and approval, member lookup, KPIs)
 - [ ] Approvals written to Lakebase and copied back to Delta
 - [ ] Full test run from raw files to the app
@@ -206,6 +207,10 @@ Things that cost time on this build. The build log has the full story; this list
 - `ai_decide`'s boolean question type is spelled `noul` in the docs, and that's what works.
 - The `febar_lakebase` catalog on the shared metastore belongs to someone else's workspace. Ours is `hearth_lakebase`.
 - `CREATE CATALOG` for Lakebase comes from an FEVM metastore grant (use case `lakebase`, up to 5 days). Ask before requesting one. Catalogs and syncs keep working after it expires.
+- Account groups need a workspace assignment (`/api/2.0/preview/permissionassignments/principals/{id}`, `USER`) before workspace object permissions accept them. UC grants work without it.
+- Genie spaces aren't bundle resources. `scripts/deploy_genie_space.py` creates or updates the space by title, so no space id is stored.
+- Metric view YAML can't take SQL parameters, so `metric_views.sql` names `katie_febar_catalog` in each source.
+- Genie's eval results list has no assessments. Fetch each result with `genie-get-eval-result-details`.
 - Synced tables can't be bundle resources yet. `hearth_lakebase.hearth.next_best_action` was made with `databricks postgres create-synced-table`, and the daily job finds its pipeline by name with a bundle lookup.
 
 **Data**

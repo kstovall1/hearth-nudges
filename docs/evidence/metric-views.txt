@@ -1,0 +1,74 @@
+# Metric view checks, 2026-11-04
+# Real output. Each metric view in src/hearth_semantic/metric_views.sql queried with MEASURE() and compared with results already in docs/evidence.
+
+## Uplift by nudge, whole test (pipeline evidence: match_waiting +6.7, new_likes 18-29 +4.4)
+
+Nudge Type         sent    sent_rate            holdout_rate         uplift_pts          extra_returns
+match_waiting      37309   0.4755957007692514   0.4088088391100348   6.67868616592166    2491.751021643712
+new_likes          84420   0.30771144278606966  0.2721056512703627   3.5605791515706975  3005.8409197559827
+new_people_nearby  148205  0.37364461387942377  0.35963906094670034  1.400555293272343   2075.6929723942762
+we_miss_you        148052  0.36934320373922674  0.36259253663695423  0.6750667102272512  999.4497658256499
+profile_tip        148590  0.36212396527357155  0.3606203896349537   0.150357563861786   223.41630414222783
+
+## Same for new_likes ages 18-29 only
+
+uplift_pts
+4.297445200530131
+
+## Uplift for blasts should be null
+
+Campaign Type  return_rate          uplift_pts          opt_out_rate
+blast          0.46613890760374926                      0.017699691801455253
+nudge_test     0.3640568674915501   1.5465559021549335  0.012339595813125163
+
+## Opt-out rate by nudge type
+
+Nudge Type         delivered  opt_outs  opt_out_rate
+we_miss_you        838873     14538     0.01733039446972307
+new_people_nearby  148770     1753      0.011783289641728843
+profile_tip        148991     1740      0.01167855776523414
+match_waiting      37690      392       0.01040063677368002
+new_likes          84392      810       0.009598066167409233
+
+## Weekly reach (pipeline evidence: week of 10/2 had 3,275 opt-outs, reach fell to 34,365)
+
+Week                      reach_start  reach_end  opt_outs  blast_pushes  pushes_per_active
+2026-08-24T00:00:00.000Z  47223        47341      644       46197         1.8030647127728239
+2026-08-31T00:00:00.000Z  47300        46626      1420      45789         1.332650243755123
+2026-09-07T00:00:00.000Z  46609        46024      1288      45170         1.2212111010583457
+2026-09-14T00:00:00.000Z  46055        45441      1280      44602         1.14657853411202
+2026-09-21T00:00:00.000Z  45411        44784      1328      44016         1.1616440009656392
+2026-09-28T00:00:00.000Z  44779        43486      2004      86083         1.4929465702697937
+2026-10-05T00:00:00.000Z  42633        40417      3706      123292        1.7687540298909643
+2026-10-12T00:00:00.000Z  39443        37559      3535      114596        1.645016456442745
+2026-10-19T00:00:00.000Z  36712        35165      3073      106747        1.498661993064978
+2026-10-26T00:00:00.000Z  34429        34365      955       33972         1.6231762253748403
+
+## Lapse risk by age and plan, latest day (scoring evidence: 45+ free 0.277)
+
+Age Band  Plan     members  mean_risk            high_risk
+18-24     free     13489    0.19489100007413446  3141
+18-24     plus     2264     0.11370088339222614  75
+18-24     premium  826      0.10888692493946733  30
+25-29     free     12516    0.21215729466283162  3542
+25-29     plus     2038     0.12043366045142297  82
+25-29     premium  774      0.11582286821705425  26
+30-34     free     8044     0.22278121581302837  2464
+30-34     plus     1340     0.12454410447761195  57
+30-34     premium  521      0.11968253358925145  19
+35-44     free     5755     0.25310201563857515  2469
+35-44     plus     921      0.1582458197611292   76
+35-44     premium  368      0.14591657608695655  22
+45+       free     2778     0.2767557955363572   1379
+45+       plus     454      0.1642588105726872   31
+45+       premium  178      0.1627679775280899   19
+
+## Picker plan (daily evidence: 4,449 sends of 34,365)
+
+Decision Date  Action  Hold Reason   members  expected_extra
+2026-10-28     send                  4449     232.39690000000016
+2026-10-28     hold    cooldown      13547
+2026-10-28     hold    active        11929
+2026-10-28     hold    likely_back   2226
+2026-10-28     hold    not_worth_it  2214
+

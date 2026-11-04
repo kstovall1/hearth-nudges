@@ -1,0 +1,302 @@
+# Genie Agent evidence, 2026-11-04
+# Real output. scripts/deploy_genie_space.py, the Genie benchmark eval (Chat mode), and scripts/ask_genie.py through the Conversation API.
+# The agent is defined in src/hearth_semantic/genie_space.py on top of the metric views in src/hearth_semantic/metric_views.sql.
+
+$ uv run python scripts/deploy_genie_space.py
+## SQL checks
+
+ok  example     5 rows  Which nudges added the most returns over the holdout in the latest full week?
+ok  example     6 rows  Opt-out rate and pushes delivered by campaign type and nudge
+ok  example    10 rows  Weekly reach, opt-outs and push volume
+ok  example    15 rows  Average lapse risk and high-risk members by age band and plan, latest score date
+ok  example     9 rows  What did the picker decide for the latest plan date, by action and reason?
+ok  example     3 rows  In which segments does a nudge lower the return rate or raise opt-outs?
+ok  benchmark   1 rows  What's the uplift of match_waiting over the holdout?
+ok  benchmark  10 rows  Total opt-outs by week
+ok  benchmark   1 rows  Which age band has the highest average lapse risk on the latest score date?
+ok  benchmark   1 rows  How many sends did the picker plan for 2026-10-28?
+ok  benchmark   2 rows  Compare the opt-out rate of blasts with the nudge test
+ok  benchmark   5 rows  Holdout return rate for we_miss_you by days away
+ok  benchmark   1 rows  How many members could we reach by push at the end of October 2026?
+ok  benchmark   1 rows  In which market size does new_people_nearby hurt returns?
+ok  benchmark  10 rows  Pushes per active member per day, by week
+ok  benchmark   1 rows  How many free members are at high lapse risk right now?
+ok  benchmark   1 rows  What share of members is the picker nudging on its latest plan?
+ok  benchmark   5 rows  Extra returns vs holdout by nudge type in October 2026
+
+## Space updated
+
+title: Hearth Campaigns
+sources: ['campaign_metrics', 'lapse_risk_metrics', 'nudge_plan_metrics', 'reach_metrics'] + ['nudge_segment_effects']
+sample questions 6, example SQL 6, benchmarks 12, text instructions 1423 characters
+hearth_marketing: CAN RUN on the space, CAN USE on the warehouse
+
+## Benchmark eval history
+
+run 1, first version:                       12 of 12 GOOD
+run 2, after the partial-week note:         11 of 12 GOOD. 'What share of members is the picker nudging' computed 100 x Sends / Members itself instead of the governed Send Rate measure (RESULT_MISSING_COLUMNS, LLM_JUDGE_INCORRECT_METRIC_CALCULATION)
+fix: synonyms and a comment on the Send Rate measure in nudge_plan_metrics
+3 runs scoped to that question:             3 of 3 GOOD, all using MEASURE(`Send Rate`)
+run 3, final:                               12 of 12 GOOD
+
+## Run 3, per question
+
+assessment  question
+GOOD        Compare the opt-out rate of blasts with the nudge test
+GOOD        Extra returns vs holdout by nudge type in October 2026
+GOOD        Holdout return rate for we_miss_you by days away
+GOOD        How many free members are at high lapse risk right now?
+GOOD        How many members could we reach by push at the end of October 2026?
+GOOD        How many sends did the picker plan for 2026-10-28?
+GOOD        In which market size does new_people_nearby hurt returns?
+GOOD        Pushes per active member per day, by week
+GOOD        Total opt-outs by week
+GOOD        What share of members is the picker nudging on its latest plan?
+GOOD        What's the uplift of match_waiting over the holdout?
+GOOD        Which age band has the highest average lapse risk on the latest score date?
+
+## Sample questions through the Conversation API
+
+$ uv run python scripts/ask_genie.py
+
+## Which nudges brought back the most members last week?
+
+status COMPLETED, 19 s
+
+sql:
+WITH `latest_full_week` AS (
+  SELECT date_sub(CAST(date_trunc('WEEK', max(`Decision Date`)) AS DATE), 7) AS `week_start`
+  FROM `katie_febar_catalog`.`hearth_gold`.`campaign_metrics`
+)
+SELECT
+  `Nudge Type`,
+  MEASURE(`Extra Returns vs Holdout`) AS `extra_returns_vs_holdout`,
+  MEASURE(`Uplift vs Holdout`) AS `uplift_vs_holdout`,
+  MEASURE(`Test Treated Decisions`) AS `test_treated_decisions`
+FROM `katie_febar_catalog`.`hearth_gold`.`campaign_metrics`
+WHERE `Campaign Type` = 'nudge_test'
+  AND `Decision Week` = (SELECT `week_start` FROM `latest_full_week`)
+  AND `Nudge Type` IS NOT NULL
+GROUP BY ALL
+ORDER BY `extra_returns_vs_holdout` DESC
+
+what it did: You want to see which types of nudges brought back the most members in the latest full week of data.
+
+result (5 rows):
+  Nudge Type | extra_returns_vs_holdout | uplift_vs_holdout | test_treated_decisions
+  new_likes | 351.68819031435845 | 5.556773428888584 | 6329
+  match_waiting | 285.31981279251164 | 8.001116455202235 | 3566
+  profile_tip | 218.4822429906541 | 1.7825099371025055 | 12257
+  new_people_nearby | 86.56580732700156 | 0.7209611670442373 | 12007
+  we_miss_you | -27.52921771913237 | -0.22386938049225313 | 12297
+
+answer:
+For the latest full week in the data, the nudges that brought back the most members in the randomized nudge test against their holdout were:
+- **new_likes**: **352** extra returns vs holdout, with **5.6 percentage points** uplift
+- **match_waiting**: **285** extra returns vs holdout, with **8.0 percentage points** uplift
+- **profile_tip**: **218** extra returns vs holdout, with **1.8 percentage points** uplift
+- **new_people_nearby**: **87** extra returns vs holdout, with **0.7 percentage points** uplift
+- **we_miss_you**: **-28** extra returns vs holdout, with **-0.2 percentage points** uplift
+Across all 5 nudges shown for last week, **new_likes** drove the most incremental returns, while **we_miss_you** was the only one that performed below its holdout.
+
+## What's the opt-out rate by nudge type?
+
+status COMPLETED, 14 s
+
+sql:
+SELECT
+  `Nudge Type`,
+  MEASURE(`Opt-out Rate`) AS `opt_out_rate`
+FROM `katie_febar_catalog`.`hearth_gold`.`campaign_metrics`
+WHERE `Nudge Type` IS NOT NULL
+GROUP BY ALL
+ORDER BY `opt_out_rate` DESC
+
+what it did: You want to see the opt-out rate for each type of nudge message.
+
+result (5 rows):
+  Nudge Type | opt_out_rate
+  we_miss_you | 0.01733039446972307
+  new_people_nearby | 0.011783289641728843
+  profile_tip | 0.01167855776523414
+  match_waiting | 0.01040063677368002
+  new_likes | 0.009598066167409233
+
+answer:
+Across the visible results, **we_miss_you** has the highest opt-out rate and **new_likes** has the lowest. Examples include:
+- **we_miss_you:** **1.7%**
+- **new_people_nearby:** **1.2%**
+- **profile_tip:** **1.2%**
+- **match_waiting:** **1.0%**
+- **new_likes:** **1.0%**
+
+In this sample of **5 nudge types**, opt-out rates range from **1.0% to 1.7%**.
+
+## Show lapse risk by cohort
+
+status COMPLETED, 19 s
+
+sql:
+WITH `latest_score_date` AS (
+  SELECT MAX(`Score Date`) AS `score_date`
+  FROM `katie_febar_catalog`.`hearth_gold`.`lapse_risk_metrics`
+)
+SELECT
+  `Age Band`,
+  MEASURE(`Members Scored`) AS `members_scored`,
+  MEASURE(`Mean Lapse Risk`) AS `mean_lapse_risk`,
+  MEASURE(`High-Risk Members`) AS `high_risk_members`,
+  MEASURE(`Share High Risk`) AS `share_high_risk`
+FROM `katie_febar_catalog`.`hearth_gold`.`lapse_risk_metrics`
+WHERE `Score Date` = (SELECT `score_date` FROM `latest_score_date`)
+  AND `Age Band` IS NOT NULL
+GROUP BY ALL
+ORDER BY `mean_lapse_risk` DESC
+
+what it did: You want to see the latest lapse risk metrics broken down by age group cohorts.
+
+result (5 rows):
+  Age Band | members_scored | mean_lapse_risk | high_risk_members | share_high_risk
+  45+ | 3410 | 0.2558280938416423 | 1429 | 0.4190615835777126
+  35-44 | 7044 | 0.23509991482112444 | 2567 | 0.3644236229415105
+  30-34 | 9905 | 0.20406822816759213 | 2540 | 0.25643614336193843
+  25-29 | 15328 | 0.19509729906054285 | 3650 | 0.23812630480167016
+  18-24 | 16579 | 0.17951891549550636 | 3246 | 0.19578985463538212
+
+answer:
+Using the **latest score date only**, lapse risk is highest in the older cohorts and declines with younger age bands. Examples include:
+- **45+**: average lapse risk **25.6%**; **41.9%** high risk (**1,429** of **3,410**)
+- **35–44**: average lapse risk **23.5%**; **36.4%** high risk (**2,567** of **7,044**)
+- **30–34**: average lapse risk **20.4%**; **25.6%** high risk (**2,540** of **9,905**)
+- **25–29**: average lapse risk **19.5%**; **23.8%** high risk (**3,650** of **15,328**)
+- **18–24**: average lapse risk **18.0%**; **19.6%** high risk (**3,246** of **16,579**)
+Across all 5 cohorts shown, both average lapse risk and the share at high risk steadily increase with age.
+
+## When did opt-outs start rising?
+
+status COMPLETED, 33 s
+
+sql:
+WITH weekly AS (
+  SELECT
+    `Week`,
+    MEASURE(`Opt-outs`) AS `opt_outs`
+  FROM `katie_febar_catalog`.`hearth_gold`.`reach_metrics`
+  WHERE `Week` IS NOT NULL
+  GROUP BY ALL
+), bounded AS (
+  SELECT
+    `Week`,
+    `opt_outs`,
+    LAG(`opt_outs`) OVER (ORDER BY `Week` ASC) AS `prev_opt_outs`,
+    `opt_outs` - LAG(`opt_outs`) OVER (ORDER BY `Week` ASC) AS `wow_change`,
+    ROW_NUMBER() OVER (ORDER BY `Week` ASC) AS `rn_asc`,
+    ROW_NUMBER() OVER (ORDER BY `Week` DESC) AS `rn_desc`
+  FROM weekly
+)
+SELECT
+  `Week`,
+  `opt_outs`,
+  `prev_opt_outs`,
+  `wow_change`
+FROM bounded
+WHERE `rn_asc` > 1 AND `rn_desc` > 1
+ORDER BY `Week` ASC
+
+what it did: You want to see the weekly trend of opt-outs over time, including the number of opt-outs each week, the previous week's opt-outs, and the week-over-week change in opt-outs.
+
+result (8 rows):
+  Week | opt_outs | prev_opt_outs | wow_change
+  2026-08-31T00:00:00.000Z | 1420 | 644 | 776
+  2026-09-07T00:00:00.000Z | 1288 | 1420 | -132
+  2026-09-14T00:00:00.000Z | 1280 | 1288 | -8
+  2026-09-21T00:00:00.000Z | 1328 | 1280 | 48
+  2026-09-28T00:00:00.000Z | 2004 | 1328 | 676
+  2026-10-05T00:00:00.000Z | 3706 | 2004 | 1702
+  2026-10-12T00:00:00.000Z | 3535 | 3706 | -171
+  2026-10-19T00:00:00.000Z | 3073 | 3535 | -462
+
+answer:
+Using the visible full weeks from **2026-08-31 to 2026-10-19**, opt-outs first started rising in the week of **2026-08-31**, then rose again after two down weeks in **2026-09-21** and accelerated through **2026-10-05**. The sharpest increases were from **1,328 to 2,004** in the week of **2026-09-28** and from **2,004 to 3,706** in **2026-10-05**, before declining in the following two weeks.
+
+## How many members will we nudge tomorrow, and why are the rest held?
+
+status COMPLETED, 26 s
+
+sql:
+WITH `latest_date` AS (
+  SELECT MAX(`Decision Date`) AS `decision_date`
+  FROM `katie_febar_catalog`.`hearth_gold`.`nudge_plan_metrics`
+),
+`sends` AS (
+  SELECT
+    p.`Decision Date` AS `Decision Date`,
+    MEASURE(`Sends`) AS `members_to_nudge`
+  FROM `katie_febar_catalog`.`hearth_gold`.`nudge_plan_metrics` AS p
+  WHERE p.`Decision Date` = (SELECT `decision_date` FROM `latest_date`)
+    AND p.`Action` = 'send'
+  GROUP BY ALL
+),
+`holds` AS (
+  SELECT
+    p.`Decision Date` AS `Decision Date`,
+    p.`Hold Reason` AS `Hold Reason`,
+    MEASURE(`Holds`) AS `members_held`
+  FROM `katie_febar_catalog`.`hearth_gold`.`nudge_plan_metrics` AS p
+  WHERE p.`Decision Date` = (SELECT `decision_date` FROM `latest_date`)
+    AND p.`Action` = 'hold'
+    AND p.`Hold Reason` IS NOT NULL
+  GROUP BY ALL
+)
+SELECT
+  h.`Decision Date`,
+  s.`members_to_nudge`,
+  h.`Hold Reason`,
+  h.`members_held`
+FROM `holds` AS h
+CROSS JOIN `sends` AS s
+ORDER BY h.`members_held` DESC
+
+what it did: You want to know how many members are planned to receive a nudge tomorrow and the reasons why the other members are being held back from receiving a nudge.
+
+result (4 rows):
+  Decision Date | members_to_nudge | Hold Reason | members_held
+  2026-10-28 | 4449 | cooldown | 13547
+  2026-10-28 | 4449 | active | 11929
+  2026-10-28 | 4449 | likely_back | 2226
+  2026-10-28 | 4449 | not_worth_it | 2214
+
+answer:
+For **2026-10-28** (the latest decision date, used as tomorrow’s plan), **4,449 members** will be nudged. The rest are held mainly for **cooldown** (**13,547**), **active** (**11,929**), **likely_back** (**2,226**), and **not_worth_it** (**2,214**); **cooldown** is the largest hold reason and is about **6.1x** the size of the send group.
+
+## Where does a nudge do more harm than good?
+
+status COMPLETED, 25 s
+
+sql:
+SELECT
+  `nudge_type`,
+  `dimension`,
+  `segment`,
+  `uplift_pts`,
+  `uplift_low_pts`,
+  `opt_out_ratio`,
+  `opt_out_treated_pct`,
+  `n_treated`,
+  `n_holdout`
+FROM `katie_febar_catalog`.`hearth_gold`.`nudge_segment_effects`
+WHERE `chosen` = true
+  AND (`uplift_pts` < 0 OR `opt_out_ratio` > 1.3)
+ORDER BY `uplift_pts` ASC, `opt_out_ratio` DESC, `nudge_type` ASC, `dimension` ASC, `segment` ASC
+
+what it did: You want to see the segments where a nudge either reduces the return rate or increases the opt-out rate significantly, focusing only on the segments that the nudge picker uses for each nudge.
+
+result (3 rows):
+  nudge_type | dimension | segment | uplift_pts | uplift_low_pts | opt_out_ratio | opt_out_treated_pct | n_treated | n_holdout
+  new_people_nearby | market_size | small | -0.86 | -1.86 | 1.519 | 1.804 | 42242 | 7414
+  profile_tip | tenure_group | after 30 days | -0.16 | -0.72 | 0.964 | 1.145 | 132908 | 23666
+  we_miss_you | days_away_bucket | 15+ days | 0.28 | -0.19 | 2.374 | 2.819 | 39409 | 6832
+
+answer:
+Using the chosen segments in the visible data, there are **3** places where a nudge appears to do more harm than good. From the randomized nudge test against holdout, **new_people_nearby** in **small** markets shows **-0.9 percentage points** uplift with **1.8%** treated opt-outs and an opt-out ratio of **1.519**, **profile_tip** for members **after 30 days** shows **-0.2 percentage points** uplift with **1.1%** treated opt-outs, and **we_miss_you** for members away **15+ days** has positive uplift of **0.3 percentage points** but unusually high opt-outs at **2.8%** with an opt-out ratio of **2.374**. Across these 3 rows, the clearest downside is **new_people_nearby** in small markets because it has the most negative uplift, while **we_miss_you** for 15+ days stands out for the highest opt-out risk.
+
