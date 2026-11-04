@@ -1,0 +1,25 @@
+# On-demand backtest of the nudge picker against the blast and the random test, scored with the
+# generator's planted effects. Rerun after changing the rules in src/hearth_ml/picker.py.
+resources:
+  jobs:
+    hearth_backtest_picker:
+      name: hearth-backtest-picker
+      parameters:
+        - name: value_of_reach
+          default: "2.0"
+      tasks:
+        - task_key: backtest
+          max_retries: 0
+          environment_key: ml
+          notebook_task:
+            notebook_path: ../src/hearth_ml/backtest_picker.py
+            base_parameters:
+              catalog: ${var.catalog}
+              value_of_reach: "{{job.parameters.value_of_reach}}"
+      environments:
+        - environment_key: ml
+          spec:
+            client: "4"
+            dependencies:
+              - scikit-learn>=1.5
+              - scipy>=1.11

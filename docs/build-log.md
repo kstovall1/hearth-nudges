@@ -237,3 +237,30 @@ How this build was made: what was decided, why, and where AI helped. This feeds 
 
 **Prompts that shaped the work**
 - "Have you been keeping all our docs updated on lessons learned and progress?"
+
+## 2026-11-04 · Rules-based nudge and send-hour picker
+
+**What happened**
+- Built the picker. The rules are in `src/hearth_ml/picker.py`, plain pandas, so the daily notebook, the backtest and the tests all run the same code. `pick_nudges.py` runs as a `hearth-daily` task after lapse scoring. It decides for the day after the last complete day and writes three tables: `hearth_gold.nudge_segment_effects` (the test readout), `hearth_gold.nudge_decisions` (history) and `hearth_serving.next_best_action` (one row per member, with change data feed on for the Lakebase sync).
+- Checked the data before writing rules. Almost every reachable member had 4+ pushes that week because of the blast, so a hard weekly cap would hold nearly everyone. Opt-outs per nudge rise from 0.6% at 0 or 1 prior pushes to 1.1% at 2 or 3 and 1.8% at 4+. That led to a value rule instead of a cap.
+- Tested locally against a full simulation. With no hints, the readout found the planted dimension for 4 of 5 nudges. It also split `match_waiting` by age, which was planted flat. That split is real in the outcomes: very active young members come back anyway, so a push can add less for them. Evidence: `docs/evidence/picker-tests.txt` (7 tests).
+- Backtested on 122,113 test decisions from 10/15 to 10/27, with rules learned only from decisions whose windows closed before 10/15. Compared with the blast on the same member-days, the picker gets 5,075 extra comebacks against 833 (56.5 per 1,000 pushes against 6.8), with 26% fewer pushes and 61% fewer estimated opt-outs. On at-risk comebacks net of opt-outs, it gets 88% of what an oracle that knows the true effects gets. Send hours land within 2 hours of the true preferred hour for 91% of members with their own sessions, and 62% on the default. Evidence: `docs/evidence/picker-backtest.txt`.
+- The first daily run decided for 10/28. It sends to 4,449 of 34,365 reachable members (13%), mostly `new_likes` and `match_waiting`, and 1,151 of the sends go to members lapsed 15+ days. 13,547 are held for cooldown, because the nudge test reaches every eligible member every 3 days. Evidence: `docs/evidence/picker-daily.txt`.
+- The backtest's eligibility check found a gap. Event-based eligibility matches the generator for members with a session in the data (100% for `new_likes`, 99.6% for `match_waiting`), but only 54% and 93% for members quiet since before the data. Their waiting likes were set before the window and appear in no event or export. Added to the plan.
+
+**Decisions**
+
+| Decision | Choice | Why |
+|---|---|---|
+| Send rule | Send if `uplift - value_of_reach x opt-out risk > 0` and uplift is above zero at 95% confidence | Says the trade-off in plain terms: send only when the extra comebacks outweigh the members lost to opt-outs. A hard push cap would hold almost everyone after the blast |
+| Value of reach | 2: one opt-out costs as much as 2 comebacks. A job parameter | **An estimate, not measured.** It's the main business dial. The backtest shows a sharp knee: at 3, sends drop from 90K to 30K, and comebacks per push rise from 56 to 80. The README should present it as Hearth's choice |
+| Segments | For each nudge, the dimension with the strongest heterogeneity (Cochran's Q, p 0.05 or below), otherwise the pooled effect | Data-driven, not hand-coded to the planted answer, and easy to explain as "where this nudge works differently". With 20 tests, one false positive at 0.05 is likely. The uplift model replaces this |
+| Opt-out risk | Measured rate for the member's recent pushes x the segment's opt-out ratio from the test | Both parts are measured, and it catches nudges that annoy one segment, like `new_people_nearby` in small markets at 1.5x |
+| Hold low lapse risk | On by default | Counted by raw 72-hour comebacks, it costs about 950. Counted by comebacks from at-risk or lapsed members, it loses none, saves 16,401 pushes and raises net value from 2,260 to 2,637. A low-risk member is 93% likely back within the week, so their comeback isn't a saved member |
+| Active and cooldown | Hold members active in the last 2 days, or nudged in the last 72 hours | The test only covered members away 2+ days, so there's no evidence a nudge helps active members. The cooldown matches the test's spacing |
+| Send hour | Smoothed peak of the member's session start hours, kept to 08:00 to 22:00 local, default 21:00 below 3 sessions | A preferred hour of 23:00 becomes 22:00, still within 2 hours, without the night opt-out penalty |
+| Backtest scoring | Planted uplift x the hour factor, capped at 1 minus the member's baseline | Without the cap, the backtest credits pushes to members who'd come back anyway with more than they can gain |
+| Eligibility for members quiet before the window | Treated as not eligible for now | Safe: it can only under-send. The fix is a likes-waiting count in the members export, which a real user database export would have |
+
+**Prompts that shaped the work**
+- "What do we need to build next?" then "Yes."

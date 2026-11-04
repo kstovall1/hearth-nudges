@@ -1,0 +1,120 @@
+# Daily nudge picker evidence, 2026-11-04
+# Real output. The hearth-daily job's pick_nudges task (src/hearth_ml/pick_nudges.py), then scripts/picker_evidence.py.
+
+$ databricks bundle run hearth_daily
+2026-11-04 10:21:06 "hearth-daily" TERMINATED SUCCESS
+Tasks: create_masks, refresh_pipeline, score_lapse, pick_nudges, apply_access
+
+pick_nudges: 34,365 reachable members, 4,449 sends for 2026-10-28
+segment dimension per nudge: {'new_likes': 'age_band', 'match_waiting': 'age_band', 'profile_tip': 'tenure_group', 'new_people_nearby': 'market_size', 'we_miss_you': 'days_away_bucket'}
+opt-out rate per delivered nudge by pushes in the 7 days before: {'0-1': 0.006, '2-3': 0.0108, '4+': 0.0184}
+default send hour: 21
+
+action  hold_reason      
+hold    active               11929
+        cooldown             13547
+        likely_back           2226
+        not_worth_it          2214
+send    match_waiting         1461
+        new_likes             2250
+        new_people_nearby      184
+        profile_tip            370
+        we_miss_you            184
+
+## Decisions by action and reason, latest day
+
+decision_date  action  reason_or_nudge    members  pct
+2026-10-28     send    new_likes          2250     6.5
+2026-10-28     send    match_waiting      1461     4.3
+2026-10-28     send    profile_tip        370      1.1
+2026-10-28     send    we_miss_you        184      0.5
+2026-10-28     send    new_people_nearby  184      0.5
+2026-10-28     hold    cooldown           13547    39.4
+2026-10-28     hold    active             11929    34.7
+2026-10-28     hold    likely_back        2226     6.5
+2026-10-28     hold    not_worth_it       2214     6.4
+
+## Sends by nudge and segment, with the estimates behind them
+
+nudge_type         segment                     sends  est_uplift_pts  est_opt_out_pct  net_value_pts  mean_lapse_risk
+new_likes          age_band=18-24              1008   3.75            1.36             1.03           0.271
+new_likes          age_band=25-29              712    5.01            1.29             2.43           0.265
+match_waiting      age_band=25-29              578    9.59            1.33             6.92           0.263
+new_likes          age_band=30-34              508    3.83            1.23             1.37           0.274
+match_waiting      age_band=30-34              375    8.41            1.36             5.7            0.28
+profile_tip        tenure_group=first 30 days  370    3.6             0.93             1.74           0.268
+match_waiting      age_band=35-44              295    7.57            1.39             4.8            0.285
+match_waiting      age_band=18-24              213    3.27            1.42             0.43           0.234
+we_miss_you        days_away_bucket=3-7 days   184    2.84            0.84             1.15           0.242
+new_people_nearby  market_size=large           130    2.57            0.78             1.02           0.226
+new_people_nearby  market_size=medium          54     1.7             0.75             0.2            0.215
+new_likes          age_band=35-44              22     1.82            0.81             0.2            0.269
+
+## Sends by local hour and where the hour came from
+
+send_hour_local  sends  from_own_sessions
+8                435    435
+9                162    162
+10               89     89
+11               120    120
+12               248    248
+13               277    277
+14               195    195
+15               61     61
+16               26     26
+17               52     52
+18               165    165
+19               390    390
+20               407    407
+21               1239   457
+22               583    583
+
+## Sends by days away and lapse risk
+
+days_away_bucket  risk_band          sends
+15+ days          unscored (lapsed)  1151
+2 days            high               109
+2 days            medium             998
+3-7 days          high               481
+3-7 days          medium             1056
+8-14 days         high               525
+8-14 days         medium             103
+8-14 days         unscored (lapsed)  26
+
+## The serving table the notification service will read
+
+decision_date  members  sends  copy_pending  one_row_per_member  first_send_utc            last_send_utc
+2026-10-28     34365    4449   4449          true                2026-10-28T12:00:00.000Z  2026-10-29T05:00:00.000Z
+
+## Five rows from the serving table (synthetic members)
+
+member_id  action  hold_reason  nudge_type     send_at_utc               send_hour_local  timezone          estimated_uplift_pts  net_value_pts  risk_band  copy_status
+m_050003   send                 match_waiting  2026-10-28T17:00:00.000Z  13               America/New_York  9.59                  7.88           medium     pending
+m_014907   send                 match_waiting  2026-10-29T01:00:00.000Z  21               America/New_York  9.59                  7.88           medium     pending
+m_030986   send                 match_waiting  2026-10-29T00:00:00.000Z  19               America/Chicago   9.59                  7.88           medium     pending
+m_003379   send                 match_waiting  2026-10-29T02:00:00.000Z  21               America/Chicago   9.59                  7.88           medium     pending
+m_023411   send                 match_waiting  2026-10-29T00:00:00.000Z  20               America/New_York  9.59                  7.88           medium     pending
+
+## Nudge test readout cells the picker uses
+
+nudge_type         dimension         segment        n_treated  n_holdout  uplift_pts  uplift_low_pts  opt_out_treated_pct  opt_out_ratio
+match_waiting      age_band          18-24          11046      1975       3.27        1.27            1.005                0.846
+match_waiting      age_band          25-29          10762      1901       9.59        7.59            0.938                0.79
+match_waiting      age_band          30-34          6939       1279       8.41        5.96            0.966                0.813
+match_waiting      age_band          35-44          5465       918        7.57        4.73            0.988                0.832
+match_waiting      age_band          45+            2806       490        3.73        -0.21           1.247                1.05
+new_likes          age_band          18-24          24615      4326       3.75        2.5             0.951                0.801
+new_likes          age_band          25-29          23514      4164       5.01        3.76            0.923                0.777
+new_likes          age_band          30-34          15463      2698       3.83        2.29            0.86                 0.724
+new_likes          age_band          35-44          12033      2099       1.82        0.12            0.889                0.749
+new_likes          age_band          45+            5948       1112       0.95        -1.41           0.908                0.765
+new_people_nearby  market_size       large          65648      11449      2.57        1.77            0.852                0.717
+new_people_nearby  market_size       medium         34393      6174       1.7         0.61            0.829                0.698
+new_people_nearby  market_size       small          42242      7414       -0.86       -1.86           1.804                1.519
+profile_tip        tenure_group      after 30 days  132908     23666      -0.16       -0.72           1.145                0.964
+profile_tip        tenure_group      first 30 days  9767       1715       3.6         1.47            0.788                0.664
+we_miss_you        days_away_bucket  15+ days       39409      6832       0.28        -0.19           2.819                2.374
+we_miss_you        days_away_bucket  2 days         58521      10611      0.51        -0.35           0.921                0.776
+we_miss_you        days_away_bucket  3-7 days       22509      3974       2.84        1.43            0.929                0.782
+we_miss_you        days_away_bucket  8-14 days      21718      4004       2.05        0.73            1.395                1.175
+

@@ -1,0 +1,79 @@
+# Nudge picker backtest, 2026-11-04
+# Real output of the hearth-backtest-picker job (src/hearth_ml/backtest_picker.py) on serverless.
+# hearth_ml.generator_truth scores the policies and supplies eligibility here. The rules never read it.
+
+$ databricks bundle run hearth_backtest_picker
+2026-11-04 10:16:07 "hearth-backtest-picker" TERMINATED SUCCESS
+
+Nudge picker backtest on test decisions 2026-10-15 to 2026-10-27 (122,113 member-days)
+
+Rules learned from decisions up to 2026-10-11. Comebacks are expected extra returns within 72 hours, scored with the planted effects. Opt-outs are estimated from measured rates. Net comebacks = comebacks - 2.0 x opt-outs. At-risk comebacks count only members with medium or high lapse risk, or already lapsed: a low-risk member is usually back within the week anyway.
+
+Policies, same members and days
+                                                             policy  sends  pct_of_members  comebacks  comebacks_per_1000_sends  est_opt_outs  net_comebacks  at_risk_comebacks  net_at_risk_comebacks
+                        blast: we_miss_you to everyone at 13:00 UTC 122113           100.0      833.4                       6.8        3135.0        -5436.7              694.4                -5575.7
+             nudge test: random nudge at a random hour, to everyone 122113           100.0     2035.2                      16.7        2135.1        -2234.9             1714.0                -2556.2
+best estimated nudge to everyone it might help, at their usual hour 114554            93.8     6187.2                      54.0        1539.3         3108.5             5209.4                 2130.8
+                              picker (rules-v1, value of reach 2.0)  89774            73.5     5075.2                      56.5        1219.3         2636.5             5075.2                 2636.5
+           oracle: true best nudge at the true hour, where it helps 121411            99.4     7703.9                      63.5        1761.0         4182.0             6522.1                 3000.1
+
+Picker sensitivity
+                                       policy  sends  comebacks  comebacks_per_1000_sends  est_opt_outs  at_risk_comebacks  net_at_risk_comebacks
+                           value of reach 0.5  96674     5204.2                      53.8        1317.0             5204.2                 2570.2
+                           value of reach 1.0  95859     5192.5                      54.2        1298.0             5192.5                 2596.5
+                           value of reach 2.0  89774     5075.2                      56.5        1219.3             5075.2                 2636.5
+                           value of reach 3.0  29675     2380.8                      80.2         368.0             2380.8                 1644.9
+                           value of reach 5.0  17515     1607.4                      91.8         241.6             1607.4                 1124.2
+value of reach 2.0, low-risk members not held 106175     6025.1                      56.7        1407.5             5075.2                 2260.1
+
+Picker decisions
+action  what             
+hold    likely_back          20700
+        not_worth_it         11639
+send    match_waiting        21234
+        new_likes            50200
+        new_people_nearby    11691
+        profile_tip           6370
+        we_miss_you            279
+
+Segment dimension the readout picked for each nudge (planted: new_likes age, profile_tip tenure, new_people_nearby market size, we_miss_you days away, match_waiting none)
+       nudge_type segment_dimension
+        new_likes               all
+    match_waiting          age_band
+      profile_tip      tenure_group
+new_people_nearby       market_size
+      we_miss_you  days_away_bucket
+
+Heterogeneity tests
+       nudge_type        dimension  segments       q  p_value
+    match_waiting         age_band         5 20.2324   0.0004
+    match_waiting days_away_bucket         4  5.5930   0.1332
+    match_waiting     tenure_group         2  0.1886   0.6640
+    match_waiting      market_size         3  0.1010   0.9508
+        new_likes         age_band         5  9.4849   0.0501
+        new_likes      market_size         3  0.9928   0.6087
+        new_likes     tenure_group         2  0.0949   0.7581
+        new_likes days_away_bucket         4  0.6145   0.8931
+new_people_nearby      market_size         3 14.7060   0.0006
+new_people_nearby         age_band         5  8.6232   0.0712
+new_people_nearby days_away_bucket         4  1.9069   0.5919
+new_people_nearby     tenure_group         2  0.0602   0.8062
+      profile_tip     tenure_group         2  6.5145   0.0107
+      profile_tip days_away_bucket         4  1.2698   0.7363
+      profile_tip         age_band         5  1.7724   0.7775
+      profile_tip      market_size         3  0.3199   0.8522
+      we_miss_you days_away_bucket         4  9.9539   0.0190
+      we_miss_you         age_band         5  4.0185   0.4035
+      we_miss_you     tenure_group         2  0.3331   0.5638
+      we_miss_you      market_size         3  0.4797   0.7867
+
+Send hour within 2 hours of the true preferred hour
+              decisions  within_2h_of_true_hour
+hour_source                                    
+default           27866                   0.616
+own sessions      94247                   0.914
+
+Eligibility from events against the generator, decisions on 2026-10-27
+                  members  decisions  new_likes_agree  match_waiting_agree  gen_new_likes  gen_match_waiting
+had a session in the data       7700           1.0000               0.9962           4307               2813
+   no session in the data       2686           0.5383               0.9296           2468                256

@@ -66,7 +66,8 @@ flowchart LR
 | `docs/build-log.md` | **The one record of decisions and trade-offs**, plus how AI was used, session by session |
 | `src/hearth_data/` | The synthetic data generator, built as a wheel and run by `resources/generator.job.yml` |
 | `src/hearth_pipeline/` | The SDP pipeline in SQL, one file per table under `bronze/`, `silver/` and `gold/` |
-| `src/hearth_ml/` | Model notebooks, run as serverless jobs. `train_lapse_model.py` trains and registers the lapse model, `score_lapse.py` writes daily scores |
+| `src/hearth_ml/` | Model notebooks, run as serverless jobs. `train_lapse_model.py` trains and registers the lapse model, `score_lapse.py` writes daily scores, `pick_nudges.py` decides tomorrow's nudges with the rules in `picker.py`, `backtest_picker.py` scores those rules |
+| `tests/` | `uv run pytest`. The picker rules are tested locally, including against a full simulation |
 | `src/hearth_governance/` | Mask functions, the catalog grant and column tags, run by the `hearth-daily` job around the pipeline |
 | `docs/evidence/` | Run output committed as text: deploys, checks, pipeline runs |
 | `README.md` | Written in phase 4. Business outcome first, then architecture, run evidence, decisions and how AI was used |
@@ -130,7 +131,8 @@ Internal details (workspace URL, resource IDs, FE Bar scoring and rules, interna
 - [x] Feature table and lapse label (`hearth_gold.member_daily_features`, `lapse_labels`)
 - [x] Train, track and register the lapse model (`hearth_ml.lapse_model@champion`, version 5)
 - [x] Serving endpoint for live scoring (`hearth-lapse`), batch scoring step (`hearth_gold.member_lapse_scores`)
-- [ ] Rules-based nudge and send-hour picker
+- [x] Rules-based nudge and send-hour picker (`hearth_gold.nudge_decisions`, `hearth_serving.next_best_action`, backtested)
+- [ ] Carry likes and messages waiting in the members export, so the picker can see them for members quiet since before the data
 - [ ] `ai_query` copy generation and `ai_decide` copy check
 - [ ] Next-best-action table synced to Lakebase
 - [ ] Notification service simulator with latency output
@@ -196,10 +198,13 @@ Things that cost time on this build. The build log has the full story; this list
 - Serving endpoints pin a model version and can't follow an alias. Rolling out a new champion means updating `lapse_model_version` and deploying.
 - System lineage covers table to table, but not landing files to bronze. Bronze rows keep `_source_file` for that link.
 - Bundle resource keys must be unique across resource types, for example an experiment and a model can't both be `lapse_model`.
+- Notebooks deployed by the bundle can `import` a sibling `.py` file, like `import picker`. Keep shared logic there so tests run it locally.
 
 **Data**
 - The last landed day can leave a partial next day, from sessions that run past midnight. Anything date-bounded should end at the last day with a session start, as gold does.
 - Streaming dedup needs a watermark, and the planted future-dated events would push it years ahead. Silver dedups in materialized views instead.
+- The generator's starting state (likes and messages waiting before the window) isn't in any event or export. Event-based eligibility misses it for members quiet since before the data.
+- Planted uplift in `generator_truth` is before the 100% ceiling. Members who'd come back anyway can't gain the full effect, so cap it at 1 minus `baseline_return_72h` when scoring.
 
 **Tools**
 - The CLI login for `fevm-katie-febar` expires after a few days. If a call fails with an invalid refresh token, ask Katie to run `databricks auth login --profile fevm-katie-febar`.

@@ -1,0 +1,11 @@
+# Nudge picker tests, 2026-11-04
+# Real output of: uv run pytest tests/test_picker.py -v
+
+tests/test_picker.py::test_hold_reasons_in_order PASSED                  [ 14%]
+tests/test_picker.py::test_unscored_members_are_not_held_as_low_risk PASSED [ 28%]
+tests/test_picker.py::test_opt_out_risk_can_outweigh_uplift PASSED       [ 42%]
+tests/test_picker.py::test_uncertain_uplift_is_not_sent PASSED           [ 57%]
+tests/test_picker.py::test_preferred_hours_stay_in_the_send_window PASSED [ 71%]
+tests/test_picker.py::test_send_times_follow_daylight_saving PASSED      [ 85%]
+tests/test_picker.py::test_readout_finds_the_planted_segments PASSED     [100%]
+============================== 7 passed in 5.99s ===============================

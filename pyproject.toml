@@ -20,6 +20,8 @@ hearth-sim-check = "hearth_data.check:main"
 dev = [
     "faker>=24",
     "databricks-connect>=16.4,<17.4",
+    "scipy>=1.18.1",
+    "pytest>=9.2.0",
 ]
 
 [build-system]
@@ -28,3 +30,6 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/hearth_data"]
+
+[tool.pytest.ini_options]
+markers = ["slow: runs the full 60-day simulation (about 30 seconds)"]
