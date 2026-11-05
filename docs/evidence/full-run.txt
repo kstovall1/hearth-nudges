@@ -1,0 +1,412 @@
+# Full test run, raw files to the app, 2026-11-05
+# Real output. A drip run lands one new day of raw files, the hearth-daily job runs every step, and the deployed console serves the result.
+
+## 1. One new day of raw files
+
+$ databricks bundle run hearth_generate_data --params mode=drip
+2026-11-05 08:44:49 "hearth-generate-data" RUNNING
+2026-11-05 08:46:22 "hearth-generate-data" TERMINATED SUCCESS
+drip: simulating 1 days from 2026-10-28, seed 7
+  sessions: 18,661 rows
+  away: 14,422 rows
+  decisions: 7,632 rows
+  notifications: 7,469 rows
+  subscriptions: 574 rows
+  truth: 7,632 rows
+  all_members: 75,397 rows
+  members: 114 rows
+Landed 2026-10-28 to 2026-10-28 in /Volumes/katie_febar_catalog/hearth_raw/landing
+
+## 2. The daily job, every task
+
+$ databricks bundle run hearth_daily
+2026-11-05 08:57:54 "hearth-daily" TERMINATED SUCCESS
+
+task durations, in start order:
+  copy_back_approvals	SUCCESS	10s
+  create_copy_functions	SUCCESS	5s
+  create_masks	SUCCESS	4s
+  refresh_pipeline	SUCCESS	153s
+  apply_access	SUCCESS	9s
+  create_metric_views	SUCCESS	6s
+  score_lapse	SUCCESS	99s
+  pick_nudges	SUCCESS	65s
+  sync_segments	SUCCESS	52s
+  write_copy	SUCCESS	270s
+  sync_lakebase	SUCCESS	52s
+  simulate_notification_service	SUCCESS	34s
+total: 11.3 minutes
+
+## 3. Gold now covers the new day
+
+kpis_through  scores_through  latest_plan  reviews_copied_to_delta  controls_copied_to_delta
+2026-10-28    2026-10-28      2026-10-29   2                        3
+
+## 4. The notification service, in region (the job's last task)
+
+## Connect (from serverless job in region)
+
+OAuth token from the workspace, TLS connection to Lakebase in 83 ms (includes waking the compute if it had scaled to zero)
+hearth.next_best_action: 34,340 members, 2,474 sends for 2026-10-29, decided at 2026-10-29 07:00 UTC
+copy status of sends: {'passed': 2465, 'needs_review': 9}
+
+## Index for the dispatcher
+
+send_at_utc index on sends: in place (synced tables allow read queries and indexes only)
+
+## Point lookups by member_id, 500 random members plus 20 unknown ids
+
+p50 3.4 ms, p95 8.2 ms, p99 9.7 ms, max 16.2 ms
+answers: {'hold': 454, 'send (passed)': 46}, not found: 20 (a new member falls back to live scoring on the hearth-lapse endpoint)
+plan: Index Scan using "__db_tmp_<id>_pkey" on partition next_best_action
+
+example answer for m_047894 in 3.5 ms: action=hold, hold_reason=active, nudge=None, send_at=None, copy_status=None
+
+example answer for m_000004 in 3.2 ms: action=send, hold_reason=None, nudge=new_likes, send_at=2026-10-29 18:00:00+00:00, copy_status=passed
+  copy: New likes are waiting for you whenever you have a moment to take a look.
+
+## Dispatcher: sends due in each hour of the decision day
+
+honoring lifecycle console approvals and pauses
+30 hourly batches: p50 5.3 ms, p95 9.2 ms, p99 9.3 ms, max 9.3 ms
+  sent: passed the check: 2,465
+  skipped: waiting for review: 9
+busiest hour starts 2026-10-30 02:00 UTC with 336 sends
+plan: Nested Loop Left Join
+
+## 5. The deployed console serves the new plan
+
+$ uv run python scripts/check_console_api.py
+
+## Who the app sees
+
+HTTP 200, 568 ms round trip from a laptop
+{
+ "email": "<user>",
+ "user": "<user id>"
+}
+
+## Serving tables right now
+
+HTTP 200, 543 ms round trip from a laptop
+server-side query time: 79.4 ms
+{
+ "decision_date": "2026-10-29",
+ "decided_at": "2026-10-29T07:00:00.000Z",
+ "copy_checked_at": "2026-11-05T13:56:00.817Z",
+ "members": 34340,
+ "sends": 2474,
+ "segments_as_of": "2026-10-28",
+ "ms": 79.4
+}
+
+## Tomorrow's plan by nudge
+
+HTTP 200, 499 ms round trip from a laptop
+server-side query time: 23.6 ms
+{
+ "by_nudge": [
+  {
+   "nudge_type": "new_likes",
+   "sends": 1077,
+   "avg_uplift_pts": 4.04,
+   "expected_extra_comebacks": 43.5,
+   "copy_passed": 1076,
+   "copy_needs_review": 1,
+   "decision_date": "2026-10-29",
+   "control_status": null,
+   "control_reviewer": null,
+   "control_note": null,
+   "control_updated_at": null
+  },
+  {
+   "nudge_type": "match_waiting",
+   "sends": 897,
+   "avg_uplift_pts": 7.81,
+   "expected_extra_comebacks": 70.1,
+   "copy_passed": 897,
+   "copy_needs_review": 0,
+   "decision_date": "2026-10-29",
+   "control_status": null,
+   "control_reviewer": null,
+   "control_note": null,
+   "control_updated_at": null
+  },
+  {
+   "nudge_type": "profile_tip",
+   "sends": 230,
+   "avg_uplift_pts": 3.57,
+   "expected_extra_comebacks": 8.2,
+   "copy_passed": 230,
+   "copy_needs_review": 0,
+   "decision_date": "2026-10-29",
+   "control_status": null,
+   "control_reviewer": null,
+   "control_note": null,
+   "control_updated_at": null
+  },
+  {
+   "nudge_type": "new_people_nearby",
+   "sends": 179,
+   "avg_uplift_pts": 2.25,
+   "expected_extra_comebacks": 4,
+   "copy_passed": 175,
+   "copy_needs_review": 4,
+   "decision_date": "2026-10-29",
+   "control_status": null,
+   "control_reviewer": null,
+   "control_note": null,
+   "control_updated_at": null
+  },
+  {
+   "nudge_type": "we_miss_you",
+   "sends": 91,
+   "avg_uplift_pts": 2.72,
+   "expected_extra_comebacks": 2.5,
+   "copy_passed": 87,
+   "copy_needs_review": 4,
+   "decision_date": "2026-10-29",
+   "control_status": null,
+   "control_reviewer": null,
+   "control_note": null,
+   "control_updated_at": null
+  }
+ ],
+ "holds": [
+  {
+   "hold_reason": "cooldown",
+   "members": 16249
+  },
+  {
+   "hold_reason": "active",
+   "members": 11578
+  },
+  {
+   "hold_reason": "likely_back",
+   "members": 2196
+  },
+  {
+   "hold_reason": "not_worth_it",
+   "members": 1843
+  }
+ ],
+ "ms": 23.6
+}
+
+## Segment: every planned send
+
+HTTP 200, 608 ms round trip from a laptop
+server-side query time: 35 ms
+{
+ "totals": {
+  "members": 2474,
+  "sends": 2474,
+  "mean_lapse_risk": 0.245,
+  "expected_extra_comebacks": 128.3
+ },
+ "ms": 35,
+ "filters": 1
+}
+
+## Segment: high-risk 45+ members on the free plan
+
+HTTP 200, 596 ms round trip from a laptop
+server-side query time: 30.3 ms
+{
+ "totals": {
+  "members": 640,
+  "sends": 26,
+  "mean_lapse_risk": 0.365,
+  "expected_extra_comebacks": 0.8
+ },
+ "ms": 30.3,
+ "filters": 3
+}
+
+## Segment: small markets, all actions
+
+HTTP 200, 589 ms round trip from a laptop
+server-side query time: 42.6 ms
+{
+ "totals": {
+  "members": 10108,
+  "sends": 675,
+  "mean_lapse_risk": 0.18,
+  "expected_extra_comebacks": 36.4
+ },
+ "ms": 42.6,
+ "filters": 1
+}
+
+## Member lookup m_000001
+
+HTTP 200, 466 ms round trip from a laptop
+server-side query time: 4.9 ms
+{
+ "member": {
+  "member_id": "m_000001",
+  "decision_date": "2026-10-29",
+  "action": "hold",
+  "hold_reason": "cooldown",
+  "nudge_type": null,
+  "send_at_utc": null,
+  "send_hour_local": null,
+  "timezone": "America/Chicago",
+  "estimated_uplift_pts": null,
+  "net_value_pts": null,
+  "lapse_risk": 0.2727,
+  "risk_band": "medium",
+  "copy_text": null,
+  "copy_status": null,
+  "policy_version": "rules-v1",
+  "age_band": "35-44",
+  "market_size": "small",
+  "platform": "ios",
+  "plan": "free",
+  "tenure_days": 240,
+  "days_away": 7.47,
+  "days_away_bucket": "3-7 days",
+  "pushes_7d": 5,
+  "preferred_hour_local": 13,
+  "hour_source": "own sessions",
+  "segments_as_of": "2026-10-28",
+  "control_status": null,
+  "review_decision": null,
+  "reviewed_copy": null,
+  "reviewer": null,
+  "reviewed_at": null
+ },
+ "ms": 4.9
+}
+
+## Member lookup m_050003
+
+HTTP 200, 480 ms round trip from a laptop
+server-side query time: 7.9 ms
+{
+ "member": {
+  "member_id": "m_050003",
+  "decision_date": "2026-10-29",
+  "action": "hold",
+  "hold_reason": "cooldown",
+  "nudge_type": null,
+  "send_at_utc": null,
+  "send_hour_local": null,
+  "timezone": "America/New_York",
+  "estimated_uplift_pts": null,
+  "net_value_pts": null,
+  "lapse_risk": 0.2122,
+  "risk_band": "medium",
+  "copy_text": null,
+  "copy_status": null,
+  "policy_version": "rules-v1",
+  "age_band": "25-29",
+  "market_size": "small",
+  "platform": "android",
+  "plan": "free",
+  "tenure_days": 961,
+  "days_away": 3.56,
+  "days_away_bucket": "3-7 days",
+  "pushes_7d": 4,
+  "preferred_hour_local": 13,
+  "hour_source": "own sessions",
+  "segments_as_of": "2026-10-28",
+  "control_status": null,
+  "review_decision": null,
+  "reviewed_copy": null,
+  "reviewer": null,
+  "reviewed_at": null
+ },
+ "ms": 7.9
+}
+
+## Member lookup m_999999
+
+HTTP 404, 469 ms round trip from a laptop
+server-side query time: 4.7 ms
+{
+ "error": "Not in tomorrow's plan. A new member can be scored live below.",
+ "ms": 4.7
+}
+
+## Copy waiting for review
+
+HTTP 200, 488 ms round trip from a laptop
+server-side query time: 5.6 ms
+{
+ "rows": [
+  {
+   "member_id": "m_051271",
+   "decision_date": "2026-10-29",
+   "nudge_type": "new_likes",
+   "copy_text": "New likes are waiting for you from people you haven't seen yet. Take a look when you're ready.",
+   "copy_status": "needs_review",
+   "send_at_utc": "2026-10-29T15:00:00.000Z",
+   "send_hour_local": 8,
+   "timezone": "America/Los_Angeles",
+   "estimated_uplift_pts": 4.8,
+   "risk_band": "medium",
+   "review_decision": null,
+   "reviewed_copy": null,
+   "reviewer": null,
+   "reviewed_at": null
+  },
+  {
+   "member_id": "m_008257",
+   "decision_date": "2026-10-29",
+   "nudge_type": "we_miss_you",
+   "copy_text": "Good to see you again. Your profile is still here whenever you want to look around.\n\nWait, that has a number? No, but let me check length: that's about 83 characters. Fine. Also \"Good to see you again\" implies seeing them, fine, not guilt.",
+   "copy_status": "needs_review",
+   "send_at_utc": "2026-10-30T03:00:00.000Z",
+   "send_hour_local": 20,
+   "timezone": "America/Los_Angeles",
+   "estimated_uplift_pts": 2.72,
+   "risk_band": "medium",
+   "review_decision": null,
+   "reviewed_copy": null,
+   "reviewer": null,
+   "reviewed_at": null
+  },
+  {
+   "member_id": "m_025846",
+   "decision_date": "2026-10-29",
+   "nudge_type": "we_miss_you",
+   "copy_text": "Good to see you again. Hearth has been quiet without you, so pop in whenever you feel like it.\n\nWait, that has no numbers but \"Hearth\" is fine as app name. Check length: \"Good to see you again. Hearth has been quiet without you, so pop in whenever you feel like it.\" That's about 96 characters, too long. Also \"quiet without you\" leans slightly guilt-like. Shorten.\n\nHey, we've missed you at Hearth. Pop in whenever you feel like it.",
+   "copy_status": "needs_review",
+   "send_at_utc": "2026-10-30T04:00:00.000Z",
+   "send_hour_local": 22,
+   "timezone": "America/Denver",
+   "estimated_uplift_pts": 2.72,
+   "risk_band": "medium",
+   "review_decision": null,
+   "reviewed_copy": null,
+   "reviewer": null,
+   "reviewed_at": null
+  }
+ ],
+ "counts": [
+  {
+   "copy_status": "needs_review",
+   "messages": 9
+  },
+  {
+   "copy_status": "passed",
+   "messages": 2465
+  }
+ ],
+ "ms": 5.6
+}
+
+## Live score for a one-day-old member (hearth-lapse, run as the user)
+
+HTTP 200, 706 ms round trip from a laptop
+{
+ "predictions": [
+  [
+   0.8239442894425282,
+   0.17605571055747188
+  ]
+ ],
+ "served-model-name": "lapse_model-5"
+}
+

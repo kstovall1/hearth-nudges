@@ -49,3 +49,10 @@ resources:
             entity_version: ${var.lapse_model_version}
             workload_size: Small
             scale_to_zero_enabled: true
+      # The lifecycle console scores new members as the signed-in marketer
+      permissions:
+        - group_name: hearth_marketing
+          level: CAN_QUERY
+        # Keeps the console's own CAN_QUERY when this permission list is applied
+        - service_principal_name: ${resources.apps.console.service_principal_client_id}
+          level: CAN_QUERY

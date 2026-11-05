@@ -71,6 +71,7 @@ flowchart LR
 | `src/hearth_genai/` | The copy functions (`functions.sql`: brief, write with Haiku, check with OpenJev) and the daily copy step (`copy.sql`) |
 | `src/hearth_serving/` | The notification service simulator, which reads next actions from Lakebase over Postgres |
 | `src/hearth_semantic/` | The metric views (`metric_views.sql`) and the Genie Agent definition (`genie_space.py`), deployed by `scripts/deploy_genie_space.py` |
+| `console/` | The lifecycle console, a Databricks App (AppKit, React). `server/console/routes.ts` is its API, `config/queries/` its warehouse queries, `client/src/pages/` its pages |
 | `src/hearth_governance/` | Mask functions, the catalog grant and column tags, run by the `hearth-daily` job around the pipeline |
 | `docs/evidence/` | Run output committed as text: deploys, checks, pipeline runs |
 | `README.md` | Written in phase 4. Business outcome first, then architecture, run evidence, decisions and how AI was used |
@@ -140,11 +141,11 @@ Internal details (workspace URL, resource IDs, FE Bar scoring and rules, interna
 - [x] Notification service simulator with latency output (laptop and in region)
 - [x] Commit training metrics, scoring output and sample copy as text
 
-### Phase 3, Genie and app (11/10 to 11/16)
+### Phase 3, Genie and app ✅ (11/4 to 11/5, planned 11/10 to 11/16)
 - [x] Genie Agent over the gold tables with instructions and sample questions ("Hearth Campaigns", on four metric views, benchmark 12 of 12)
-- [ ] Lifecycle console (segments, next-action queue, copy review and approval, member lookup, KPIs)
-- [ ] Approvals written to Lakebase and copied back to Delta
-- [ ] Full test run from raw files to the app
+- [x] Lifecycle console (segments, next-action queue, copy review and approval, member lookup, KPIs) (`hearth-console`, AppKit, in `console/`)
+- [x] Approvals written to Lakebase and copied back to Delta (`console.copy_reviews`, `console.campaign_controls`, honored by the notification service)
+- [x] Full test run from raw files to the app (drip day, `hearth-daily` in 11.3 minutes, console serving the new plan)
 
 ### Phase 4, narrative, evidence and first submit (11/17 to 11/23)
 - [ ] README
@@ -211,6 +212,12 @@ Things that cost time on this build. The build log has the full story; this list
 - Genie spaces aren't bundle resources. `scripts/deploy_genie_space.py` creates or updates the space by title, so no space id is stored.
 - Metric view YAML can't take SQL parameters, so `metric_views.sql` names `katie_febar_catalog` in each source.
 - Genie's eval results list has no assessments. Fetch each result with `genie-get-eval-result-details`.
+- `bundle deploy` uploads an app's source but doesn't redeploy a running app. Run `databricks bundle run console` after it.
+- An AppKit build runs `appkit generate-types` as the app's service principal. It fails until the service principal can read every query's tables, so give access before the first deploy. Here, the service principal is in `hearth_marketing`.
+- The build can't fetch a custom model endpoint's schema, so the generated serving response type is empty. Narrow the response in code instead of relying on it.
+- The app's service principal can't read synced tables until the project owner grants it. Run `scripts/grant_lakebase_reader.py` after the first deploy.
+- `x-forwarded-user` is `<user id>@<workspace id>`. Redact it in evidence, as `scripts/check_console_api.py` does.
+- The analytics plugin caches query results by parameters. Anything that must run every time, like the copy check, goes through a server route instead.
 - Synced tables can't be bundle resources yet. `hearth_lakebase.hearth.next_best_action` was made with `databricks postgres create-synced-table`, and the daily job finds its pipeline by name with a bundle lookup.
 
 **Data**
@@ -223,6 +230,6 @@ Things that cost time on this build. The build log has the full story; this list
 **Tools**
 - The CLI login for `fevm-katie-febar` expires after a few days. If a call fails with an invalid refresh token, ask Katie to run `databricks auth login --profile fevm-katie-febar`.
 - An agent's shell keeps the environment from when the session started. If a git hook crashes on Python 3.15, check `python3 --version` and put `/opt/homebrew/opt/python@3.13/libexec/bin` first on `PATH`.
-- `GID` is read-only in zsh. Don't use it as a variable name.
+- `GID` is read-only in zsh, and `path` is tied to `PATH`. Don't use either as a variable name: `for path in ...` wipes out the command search path.
 - The leak check flags any UUID, including the ones in Spark part-file names. Show folders, not file names, in evidence.
 - Check a subagent's files, not just its report. One report said its evidence was redacted when the file held real values.

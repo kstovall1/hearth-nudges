@@ -1,0 +1,34 @@
+# Approvals loop evidence, 2026-11-05
+# Real output. The console's decisions copied from Lakebase into Delta by src/hearth_serving/copy_back_approvals.sql, then the notification service simulator honoring them.
+
+$ uv run python scripts/run_sql_file.py src/hearth_serving/copy_back_approvals.sql
+
+## hearth_gold.campaign_controls
+
+decision_date  nudge_type         status    note                                                                 reviewer                      updated_at
+2026-10-28     match_waiting      approved                                                                       <user>  2026-11-05T13:33:36.233Z
+2026-10-28     new_likes          approved                                                                       <user>  2026-11-05T13:33:35.751Z
+2026-10-28     new_people_nearby  paused    Small markets opt out at 1.5x. Pausing while we review the segment.  <user>  2026-11-05T13:33:35.263Z
+
+## hearth_gold.copy_reviews
+
+review_id  member_id  nudge_type  decision  check_passed  final_copy                                                                                      reviewer
+1          m_031640   new_likes   approved  true          New likes are waiting for you. Take a look when you have a moment.                              <user>
+2          m_027802   new_likes   rejected                New likes are waiting for you from people you haven't seen yet. Take a look when you're ready.  <user>
+
+
+$ uv run python src/hearth_serving/notification_simulator.py   # from a laptop, after the reviews and the pause
+
+## Dispatcher: sends due in each hour of the decision day
+
+honoring lifecycle console approvals and pauses
+30 hourly batches: p50 110.6 ms, p95 119.7 ms, p99 218.0 ms, max 218.0 ms
+  sent: approved in console: 1
+  sent: passed the check: 4,256
+  skipped: copy rejected: 1
+  skipped: nudge paused: 184
+  skipped: waiting for review: 7
+busiest hour starts 2026-10-29 01:00 UTC with 669 sends
+plan: Nested Loop Left Join
+
+4,256 + 1 + 1 + 184 + 7 = 4,449, every planned send. The paused nudge, the rejected message and messages still waiting for review are not sent. The edited approval goes out with the marketer's text.

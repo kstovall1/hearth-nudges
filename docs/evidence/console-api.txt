@@ -1,0 +1,512 @@
+# Lifecycle console evidence, 2026-11-05
+# Real output of scripts/check_console_api.py against the deployed hearth-console app, called over HTTPS with an OAuth token, so requests run as the signed-in user.
+# Round-trip times include the internet hop from a laptop. 'server-side query time' is Lakebase as the app sees it, in region.
+
+# Part 1. Reads: plan, segments, lookups, copy queue and a live score
+
+$ uv run python scripts/check_console_api.py
+
+## Who the app sees
+
+HTTP 200, 481 ms round trip from a laptop
+{
+ "email": "<user>",
+ "user": "<user id>"
+}
+
+## Serving tables right now
+
+HTTP 200, 869 ms round trip from a laptop
+server-side query time: 388.5 ms
+{
+ "decision_date": "2026-10-28",
+ "decided_at": "2026-10-28T07:00:00.000Z",
+ "copy_checked_at": "2026-11-05T13:09:08.134Z",
+ "members": 34365,
+ "sends": 4449,
+ "segments_as_of": "2026-10-27",
+ "ms": 388.5
+}
+
+## Tomorrow's plan by nudge
+
+HTTP 200, 481 ms round trip from a laptop
+server-side query time: 41.7 ms
+{
+ "by_nudge": [
+  {
+   "nudge_type": "new_likes",
+   "sends": 2250,
+   "avg_uplift_pts": 4.15,
+   "expected_extra_comebacks": 93.3,
+   "copy_passed": 2244,
+   "copy_needs_review": 6,
+   "decision_date": "2026-10-28",
+   "control_status": null,
+   "control_reviewer": null,
+   "control_note": null,
+   "control_updated_at": null
+  },
+  {
+   "nudge_type": "match_waiting",
+   "sends": 1461,
+   "avg_uplift_pts": 7.96,
+   "expected_extra_comebacks": 116.3,
+   "copy_passed": 1461,
+   "copy_needs_review": 0,
+   "decision_date": "2026-10-28",
+   "control_status": null,
+   "control_reviewer": null,
+   "control_note": null,
+   "control_updated_at": null
+  },
+  {
+   "nudge_type": "profile_tip",
+   "sends": 370,
+   "avg_uplift_pts": 3.6,
+   "expected_extra_comebacks": 13.3,
+   "copy_passed": 370,
+   "copy_needs_review": 0,
+   "decision_date": "2026-10-28",
+   "control_status": null,
+   "control_reviewer": null,
+   "control_note": null,
+   "control_updated_at": null
+  },
+  {
+   "nudge_type": "we_miss_you",
+   "sends": 184,
+   "avg_uplift_pts": 2.84,
+   "expected_extra_comebacks": 5.2,
+   "copy_passed": 181,
+   "copy_needs_review": 3,
+   "decision_date": "2026-10-28",
+   "control_status": null,
+   "control_reviewer": null,
+   "control_note": null,
+   "control_updated_at": null
+  },
+  {
+   "nudge_type": "new_people_nearby",
+   "sends": 184,
+   "avg_uplift_pts": 2.31,
+   "expected_extra_comebacks": 4.3,
+   "copy_passed": 178,
+   "copy_needs_review": 6,
+   "decision_date": "2026-10-28",
+   "control_status": null,
+   "control_reviewer": null,
+   "control_note": null,
+   "control_updated_at": null
+  }
+ ],
+ "holds": [
+  {
+   "hold_reason": "cooldown",
+   "members": 13547
+  },
+  {
+   "hold_reason": "active",
+   "members": 11929
+  },
+  {
+   "hold_reason": "likely_back",
+   "members": 2226
+  },
+  {
+   "hold_reason": "not_worth_it",
+   "members": 2214
+  }
+ ],
+ "ms": 41.7
+}
+
+## Segment: every planned send
+
+HTTP 200, 601 ms round trip from a laptop
+server-side query time: 30.9 ms
+{
+ "totals": {
+  "members": 4449,
+  "sends": 4449,
+  "mean_lapse_risk": 0.265,
+  "expected_extra_comebacks": 232.4
+ },
+ "ms": 30.9,
+ "filters": 1
+}
+
+## Segment: high-risk 45+ members on the free plan
+
+HTTP 200, 586 ms round trip from a laptop
+server-side query time: 27.4 ms
+{
+ "totals": {
+  "members": 615,
+  "sends": 48,
+  "mean_lapse_risk": 0.365,
+  "expected_extra_comebacks": 1.5
+ },
+ "ms": 27.4,
+ "filters": 3
+}
+
+## Segment: small markets, all actions
+
+HTTP 200, 618 ms round trip from a laptop
+server-side query time: 42.4 ms
+{
+ "totals": {
+  "members": 10120,
+  "sends": 1245,
+  "mean_lapse_risk": 0.179,
+  "expected_extra_comebacks": 66
+ },
+ "ms": 42.4,
+ "filters": 1
+}
+
+## Member lookup m_000001
+
+HTTP 200, 474 ms round trip from a laptop
+server-side query time: 10.9 ms
+{
+ "member": {
+  "member_id": "m_000001",
+  "decision_date": "2026-10-28",
+  "action": "send",
+  "hold_reason": null,
+  "nudge_type": "match_waiting",
+  "send_at_utc": "2026-10-28T18:00:00.000Z",
+  "send_hour_local": 13,
+  "timezone": "America/Chicago",
+  "estimated_uplift_pts": 7.57,
+  "net_value_pts": 4.52,
+  "lapse_risk": 0.2587,
+  "risk_band": "medium",
+  "copy_text": "Someone you matched with sent you a message. Take a look when you have a moment.",
+  "copy_status": "passed",
+  "policy_version": "rules-v1",
+  "age_band": "35-44",
+  "market_size": "small",
+  "platform": "ios",
+  "plan": "free",
+  "tenure_days": 239,
+  "days_away": 6.47,
+  "days_away_bucket": "3-7 days",
+  "pushes_7d": 5,
+  "preferred_hour_local": 13,
+  "hour_source": "own sessions",
+  "segments_as_of": "2026-10-27",
+  "control_status": null,
+  "review_decision": null,
+  "reviewed_copy": null,
+  "reviewer": null,
+  "reviewed_at": null
+ },
+ "ms": 10.9
+}
+
+## Member lookup m_050003
+
+HTTP 200, 457 ms round trip from a laptop
+server-side query time: 7.2 ms
+{
+ "member": {
+  "member_id": "m_050003",
+  "decision_date": "2026-10-28",
+  "action": "send",
+  "hold_reason": null,
+  "nudge_type": "match_waiting",
+  "send_at_utc": "2026-10-28T17:00:00.000Z",
+  "send_hour_local": 13,
+  "timezone": "America/New_York",
+  "estimated_uplift_pts": 9.59,
+  "net_value_pts": 7.88,
+  "lapse_risk": 0.1812,
+  "risk_band": "medium",
+  "copy_text": "A match sent you a message on Hearth. Take a look whenever you feel like it.",
+  "copy_status": "passed",
+  "policy_version": "rules-v1",
+  "age_band": "25-29",
+  "market_size": "small",
+  "platform": "android",
+  "plan": "free",
+  "tenure_days": 960,
+  "days_away": 2.56,
+  "days_away_bucket": "2 days",
+  "pushes_7d": 3,
+  "preferred_hour_local": 13,
+  "hour_source": "own sessions",
+  "segments_as_of": "2026-10-27",
+  "control_status": null,
+  "review_decision": null,
+  "reviewed_copy": null,
+  "reviewer": null,
+  "reviewed_at": null
+ },
+ "ms": 7.2
+}
+
+## Member lookup m_999999
+
+HTTP 404, 446 ms round trip from a laptop
+server-side query time: 5 ms
+{
+ "error": "Not in tomorrow's plan. A new member can be scored live below.",
+ "ms": 5
+}
+
+## Copy waiting for review
+
+HTTP 200, 481 ms round trip from a laptop
+server-side query time: 5.1 ms
+{
+ "rows": [
+  {
+   "member_id": "m_031640",
+   "decision_date": "2026-10-28",
+   "nudge_type": "new_likes",
+   "copy_text": "New likes are waiting for you from people you haven't seen yet. Take a look when you're ready.",
+   "copy_status": "needs_review",
+   "send_at_utc": "2026-10-28T13:00:00.000Z",
+   "send_hour_local": 8,
+   "timezone": "America/Chicago",
+   "estimated_uplift_pts": 3.83,
+   "risk_band": "medium",
+   "review_decision": null,
+   "reviewed_copy": null,
+   "reviewer": null,
+   "reviewed_at": null
+  },
+  {
+   "member_id": "m_027802",
+   "decision_date": "2026-10-28",
+   "nudge_type": "new_likes",
+   "copy_text": "New likes are waiting for you from people you haven't seen yet. Take a look when you're ready.",
+   "copy_status": "needs_review",
+   "send_at_utc": "2026-10-28T20:00:00.000Z",
+   "send_hour_local": 13,
+   "timezone": "America/Phoenix",
+   "estimated_uplift_pts": 3.75,
+   "risk_band": "high",
+   "review_decision": null,
+   "reviewed_copy": null,
+   "reviewer": null,
+   "reviewed_at": null
+  },
+  {
+   "member_id": "m_028033",
+   "decision_date": "2026-10-28",
+   "nudge_type": "new_likes",
+   "copy_text": "Someone new has liked your profile. Take a look when you have a moment.\n\nWait, check constraints: \"Someone new\" is fine, no numbers. Length: count roughly. \"Someone new has liked your profile. Take a look when you have a moment.\" That's about 72 characters. Facts say \"new likes waiting from people they have not seen yet.\" Better to reflect that: \"You have new likes waiting from people you haven't seen yet.\" Count: about 60 characters. Good.\n\nYou have new likes waiting from people you haven't seen yet.",
+   "copy_status": "needs_review",
+   "send_at_utc": "2026-10-29T01:00:00.000Z",
+   "send_hour_local": 21,
+   "timezone": "America/New_York",
+   "estimated_uplift_pts": 3.75,
+   "risk_band": "high",
+   "review_decision": null,
+   "reviewed_copy": null,
+   "reviewer": null,
+   "reviewed_at": null
+  }
+ ],
+ "counts": [
+  {
+   "copy_status": "needs_review",
+   "messages": 15
+  },
+  {
+   "copy_status": "passed",
+   "messages": 4434
+  }
+ ],
+ "ms": 5.1
+}
+
+## Live score for a one-day-old member (hearth-lapse, run as the user)
+
+HTTP 200, 32067 ms round trip from a laptop
+{
+ "predictions": [
+  [
+   0.8239442894425282,
+   0.17605571055747188
+  ]
+ ],
+ "served-model-name": "lapse_model-5"
+}
+
+
+# Part 2. Writes: copy check, a refused approval, an edited approval, a rejection, a pause and two approvals
+
+$ uv run python scripts/check_console_api.py --write-tests
+
+## Check the failed message as written (m_031640)
+
+HTTP 200, 8507 ms round trip from a laptop
+server-side query time: 8035.6 ms
+{
+ "decision_date": "2026-10-28",
+ "brief": "The member has new likes waiting from people they have not seen yet.",
+ "passed": false,
+ "reasons": [
+  "too_long"
+ ],
+ "scores": {
+  "personal_info": 0.01,
+  "sensitive_trait": 0.01,
+  "unsupported_claim": 0.02,
+  "guilt_or_pressure": 0.12,
+  "on_topic": 0.9,
+  "tone": 1.26
+ },
+ "ms": 8035.6
+}
+
+## Try to approve it unchanged (the server must refuse)
+
+HTTP 422, 2832 ms round trip from a laptop
+{
+ "error": "The message did not pass the copy check, so it cannot be approved",
+ "check": {
+  "decision_date": "2026-10-28",
+  "brief": "The member has new likes waiting from people they have not seen yet.",
+  "passed": false,
+  "reasons": [
+   "too_long"
+  ],
+  "scores": {
+   "personal_info": 0.01,
+   "sensitive_trait": 0.01,
+   "unsupported_claim": 0.02,
+   "guilt_or_pressure": 0.12,
+   "on_topic": 0.9,
+   "tone": 1.26
+  }
+ }
+}
+
+## Approve an edited version
+
+HTTP 201, 2639 ms round trip from a laptop
+{
+ "review": {
+  "review_id": "1",
+  "member_id": "m_031640",
+  "decision_date": "2026-10-28",
+  "decision": "approved",
+  "final_copy": "New likes are waiting for you. Take a look when you have a moment.",
+  "reviewer": "<user>",
+  "created_at": "2026-11-05T13:33:33.849Z"
+ },
+ "check": {
+  "decision_date": "2026-10-28",
+  "brief": "The member has new likes waiting from people they have not seen yet.",
+  "passed": true,
+  "reasons": [],
+  "scores": {
+   "personal_info": 0.02,
+   "sensitive_trait": 0.01,
+   "unsupported_claim": 0.03,
+   "guilt_or_pressure": 0.09,
+   "on_topic": 0.86,
+   "tone": 1.2
+  }
+ }
+}
+
+## Reject another failed message (m_027802)
+
+HTTP 201, 454 ms round trip from a laptop
+{
+ "review": {
+  "review_id": "2",
+  "member_id": "m_027802",
+  "decision_date": "2026-10-28",
+  "decision": "rejected",
+  "final_copy": "New likes are waiting for you from people you haven't seen yet. Take a look when you're ready.",
+  "reviewer": "<user>",
+  "created_at": "2026-11-05T13:33:34.797Z"
+ },
+ "check": null
+}
+
+## Pause new_people_nearby for the day
+
+HTTP 200, 470 ms round trip from a laptop
+{
+ "decision_date": "2026-10-28",
+ "nudge_type": "new_people_nearby",
+ "status": "paused",
+ "note": "Small markets opt out at 1.5x. Pausing while we review the segment.",
+ "reviewer": "<user>",
+ "updated_at": "2026-11-05T13:33:35.263Z"
+}
+
+## Approve new_likes
+
+HTTP 200, 483 ms round trip from a laptop
+{
+ "decision_date": "2026-10-28",
+ "nudge_type": "new_likes",
+ "status": "approved",
+ "note": null,
+ "reviewer": "<user>",
+ "updated_at": "2026-11-05T13:33:35.751Z"
+}
+
+## Approve match_waiting
+
+HTTP 200, 482 ms round trip from a laptop
+{
+ "decision_date": "2026-10-28",
+ "nudge_type": "match_waiting",
+ "status": "approved",
+ "note": null,
+ "reviewer": "<user>",
+ "updated_at": "2026-11-05T13:33:36.233Z"
+}
+
+## Member lookup m_031640 after the edited approval
+
+HTTP 200, 484 ms round trip from a laptop
+server-side query time: 5.3 ms
+{
+ "member": {
+  "member_id": "m_031640",
+  "decision_date": "2026-10-28",
+  "action": "send",
+  "hold_reason": null,
+  "nudge_type": "new_likes",
+  "send_at_utc": "2026-10-28T13:00:00.000Z",
+  "send_hour_local": 8,
+  "timezone": "America/Chicago",
+  "estimated_uplift_pts": 3.83,
+  "net_value_pts": 2.26,
+  "lapse_risk": 0.2648,
+  "risk_band": "medium",
+  "copy_text": "New likes are waiting for you from people you haven't seen yet. Take a look when you're ready.",
+  "copy_status": "needs_review",
+  "policy_version": "rules-v1",
+  "age_band": "30-34",
+  "market_size": "large",
+  "platform": "ios",
+  "plan": "free",
+  "tenure_days": 754,
+  "days_away": 8.09,
+  "days_away_bucket": "8-14 days",
+  "pushes_7d": 3,
+  "preferred_hour_local": 8,
+  "hour_source": "own sessions",
+  "segments_as_of": "2026-10-27",
+  "control_status": "approved",
+  "review_decision": "approved",
+  "reviewed_copy": "New likes are waiting for you. Take a look when you have a moment.",
+  "reviewer": "<user>",
+  "reviewed_at": "2026-11-05T13:33:33.849Z"
+ },
+ "ms": 5.3
+}
+

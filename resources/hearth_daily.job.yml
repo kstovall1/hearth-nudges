@@ -1,6 +1,6 @@
-# The daily flow: mask and copy functions, then the pipeline, the metric views Genie reads, lapse scoring, the
-# nudge picker and copy, the Lakebase sync and a notification service check, alongside the catalog grant and
-# column tags. The schedule stays paused; run it by hand.
+# The daily flow: copy yesterday's console approvals to Delta, create mask and copy functions, then the pipeline,
+# the metric views Genie reads, lapse scoring, the nudge picker and copy, the Lakebase syncs and a notification
+# service check, alongside the catalog grant and column tags. The schedule stays paused; run it by hand.
 resources:
   jobs:
     hearth_daily:
@@ -17,6 +17,14 @@ resources:
         - name: value_of_reach
           default: "2.0"  # one opt-out costs as much as this many comebacks. A business estimate
       tasks:
+        - task_key: copy_back_approvals
+          sql_task:
+            warehouse_id: ${var.warehouse_id}
+            file:
+              path: ../src/hearth_serving/copy_back_approvals.sql
+            parameters:
+              catalog: "{{job.parameters.catalog}}"
+
         - task_key: create_masks
           sql_task:
             warehouse_id: ${var.warehouse_id}
@@ -90,9 +98,16 @@ resources:
           pipeline_task:
             pipeline_id: ${var.nba_sync_pipeline}
 
+        - task_key: sync_segments
+          depends_on:
+            - task_key: pick_nudges
+          pipeline_task:
+            pipeline_id: ${var.segments_sync_pipeline}
+
         - task_key: simulate_notification_service
           depends_on:
             - task_key: sync_lakebase
+            - task_key: sync_segments
           max_retries: 0
           environment_key: serving
           notebook_task:

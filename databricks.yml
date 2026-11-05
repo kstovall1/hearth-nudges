@@ -23,6 +23,14 @@ variables:
     description: The pipeline behind the hearth_lakebase.hearth.next_best_action synced table, made by create-synced-table
     lookup:
       pipeline: "Synced table: hearth_lakebase.hearth.next_best_action y20Od6"
+  genie_space_id:
+    description: >-
+      The Hearth Campaigns Genie space. Set in the gitignored .databricks/bundle/dev/variable-overrides.json by
+      scripts/set_bundle_overrides.py, which finds the space by title, so the id stays out of the repo.
+  segments_sync_pipeline:
+    description: The pipeline behind the hearth_lakebase.hearth.member_segments synced table, made by create-synced-table
+    lookup:
+      pipeline: "Synced table: hearth_lakebase.hearth.member_segments vT3nwp"
   warehouse_id:
     description: SQL warehouse for the job's SQL tasks
     lookup:

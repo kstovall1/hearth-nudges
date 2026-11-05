@@ -4,7 +4,8 @@ What a real service would do, and what this times:
 1. Connect with a short-lived OAuth token from the workspace. No password is stored anywhere.
 2. Look up one member's next action by member_id, the call made when a push is about to go out.
 3. Pull every send due in the next hour, the batch a dispatcher would run.
-4. Dispatch only messages whose copy passed the check. Holds and messages waiting for review are skipped.
+4. Dispatch only copy that passed the check, or a version a marketer approved in the lifecycle console. Skip
+   nudge types a marketer paused for the day, messages a marketer rejected, and messages still waiting for review.
 
 Runs from a laptop (uv run python src/hearth_serving/notification_simulator.py) or as a serverless job
 (notification_simulator_job.py), which shows latency from inside the cloud region.
@@ -28,10 +29,38 @@ LOOKUP_SQL = f"""
   FROM {TABLE} WHERE member_id = %s
 """
 DUE_SQL = f"""
-  SELECT member_id, nudge_type, send_at_utc, copy_text, copy_status
+  SELECT member_id, nudge_type, send_at_utc, copy_text, copy_status,
+    NULL::text AS control_status, NULL::text AS review_decision, NULL::text AS final_copy
   FROM {TABLE}
   WHERE action = 'send' AND send_at_utc >= %s AND send_at_utc < %s
 """
+# The same, honoring the lifecycle console's decisions once its schema exists
+DUE_WITH_CONSOLE_SQL = f"""
+  SELECT n.member_id, n.nudge_type, n.send_at_utc, n.copy_text, n.copy_status,
+    c.status AS control_status, r.decision AS review_decision, r.final_copy
+  FROM {TABLE} n
+  LEFT JOIN console.campaign_controls c ON c.decision_date = n.decision_date AND c.nudge_type = n.nudge_type
+  LEFT JOIN LATERAL (
+    SELECT decision, final_copy FROM console.copy_reviews r
+    WHERE r.member_id = n.member_id AND r.decision_date = n.decision_date
+    ORDER BY created_at DESC LIMIT 1
+  ) r ON true
+  WHERE n.action = 'send' AND n.send_at_utc >= %s AND n.send_at_utc < %s
+"""
+
+
+def dispatch_decision(row):
+    """What the service does with one due send: (sent?, copy, why)."""
+    _, _, _, copy_text, copy_status, control_status, review_decision, final_copy = row
+    if control_status == "paused":
+        return False, None, "nudge paused"
+    if review_decision == "rejected":
+        return False, None, "copy rejected"
+    if review_decision == "approved":
+        return True, final_copy, "approved in console"
+    if copy_status == "passed":
+        return True, copy_text, "passed the check"
+    return False, None, "waiting for review"
 
 
 def connect(w, project, branch, endpoint, database):
@@ -138,24 +167,30 @@ def main(argv=None, client=None, where="laptop"):
         if m[5]:
             say(f"  copy: {m[5]}")
 
+    cur.execute("SELECT to_regclass('console.campaign_controls') IS NOT NULL AND to_regclass('console.copy_reviews') IS NOT NULL")
+    console = cur.fetchone()[0]
+    due_sql = DUE_WITH_CONSOLE_SQL if console else DUE_SQL
     say("\n## Dispatcher: sends due in each hour of the decision day\n")
+    say("honoring lifecycle console approvals and pauses" if console else "no lifecycle console decisions yet")
     start = datetime(decision_date.year, decision_date.month, decision_date.day, tzinfo=timezone.utc)
-    batch_ms, dispatched, skipped = [], 0, 0
+    batch_ms, outcomes = [], {}
     busiest = (None, 0)
     for h in range(30):  # local evenings in the US run past midnight UTC
         lo, hi = start + timedelta(hours=h), start + timedelta(hours=h + 1)
-        rows, ms = timed(cur, DUE_SQL, (lo, hi))
+        rows, ms = timed(cur, due_sql, (lo, hi))
         batch_ms.append(ms)
-        ok = sum(1 for r in rows if r[4] == "passed")
-        dispatched += ok
-        skipped += len(rows) - ok
+        for r in rows:
+            sent, _, why = dispatch_decision(r)
+            key = ("sent: " if sent else "skipped: ") + why
+            outcomes[key] = outcomes.get(key, 0) + 1
         if len(rows) > busiest[1]:
             busiest = (lo, len(rows))
     say(f"{len(batch_ms)} hourly batches: {percentiles(batch_ms)}")
-    say(f"dispatched {dispatched:,} pushes with checked copy, skipped {skipped:,} waiting for review")
+    for key, n in sorted(outcomes.items()):
+        say(f"  {key}: {n:,}")
     say(f"busiest hour starts {busiest[0]:%Y-%m-%d %H:%M} UTC with {busiest[1]:,} sends")
 
-    say(f"plan: {plan_text(cur, DUE_SQL, (start, start + timedelta(hours=1)))}")
+    say(f"plan: {plan_text(cur, due_sql, (start, start + timedelta(hours=1)))}")
     conn.close()
     return "\n".join(out)
 

@@ -322,3 +322,35 @@ How this build was made: what was decided, why, and where AI helped. This feeds 
 **Prompts that shaped the work**
 - "Go to phase 3."
 - Approval of the Genie design: "Build it as proposed."
+
+## 2026-11-05 · Lifecycle console, approvals and the full test run
+
+**What happened**
+- Katie chose both data paths and a new Lakebase schema for the app's own data. Lakebase serves the plan, segments and lookups, and the metric views serve the KPIs. App data lives in the hearth-nudges dev branch, schema `console`.
+- Added `hearth_serving.member_segments`, the latest non-PII features of every reachable member, written by the picker and synced to Lakebase as `hearth.member_segments`. A `sync_segments` task in `hearth-daily` refreshes it.
+- Built `hearth-console`, an AppKit app in `console/`, deployed by the main bundle (`resources/console.app.yml`). It has five pages: Overview (KPIs from the metric views), Tomorrow's plan (sends by nudge with approve and pause, holds by reason, a segment builder), Copy review (edit, check, approve or reject), Member lookup (with live scoring for a new member) and Ask Genie (the Hearth Campaigns agent embedded with all five trust patterns). Every KPI shows its unit, comparison and source, and every view has loading, empty and error states.
+- The server owns schema `console` in Lakebase: `campaign_controls` (approve or pause a nudge for a day) and `copy_reviews` (each approval or rejection). Approving re-runs `hearth_ml.check_nudge_copy` on the server, against the brief stored for that member, so copy that fails can't be approved from the browser and an edit can't change the facts.
+- Deploying took three tries. The first build failed because the build generates query types as the app's service principal, which couldn't read the metric views. I added it to `hearth_marketing` and granted that group `EXECUTE` on the copy check. The second failed because the build couldn't fetch the endpoint's schema, so the generated serving type was empty, and the page now narrows the response itself. `bundle deploy` doesn't redeploy a running app, so `bundle run console` does.
+- Granted the app's service principal `SELECT` on the synced tables with `scripts/grant_lakebase_reader.py`, and `hearth_marketing` CAN QUERY on `hearth-lapse` for live scoring as the user.
+- Tested the deployed API as a signed-in user. Lakebase answers in 5 to 42 ms inside the app. The copy check takes 8 seconds cold and 2.6 warm. The server refused to approve a failing message unchanged (HTTP 422), approved an edited version that passed, saved a rejection, a pause on `new_people_nearby` and two approvals. Live scoring took 32 seconds from cold and 0.7 seconds warm. Evidence: `docs/evidence/console-api.txt`.
+- Closed the loop. `src/hearth_serving/copy_back_approvals.sql` copies both console tables into `hearth_gold` through the `hearth_lakebase` catalog, as the first task of `hearth-daily`. The notification service simulator now honors the console's decisions. Of 4,449 sends, it sent 4,256 that passed the check and 1 approved edit, and skipped 184 paused, 1 rejected and 7 still waiting for review. Evidence: `docs/evidence/approvals-loop.txt`.
+- Checked every page in a browser against a local run, which caught three things. The headline credited the whole reach drop to the blast, but reach was already falling before the change. A tile called the randomized test "targeted nudges". And one chart put blast pushes and opt-outs on one axis, which flattened the blast line. All three are fixed, and the browser console showed no errors.
+- Full test run from raw files to the app. A drip run landed 10/28, then `hearth-daily` ran all 12 tasks in 11.3 minutes. Gold now runs through 10/28, the console serves the plan for 10/29 (2,474 sends, fewer because the picker's 10/28 sends now count toward the cooldown), and in-region lookups run at p50 3.4 ms. Evidence: `docs/evidence/full-run.txt`.
+
+**Decisions**
+
+| Decision | Choice | Why |
+|---|---|---|
+| Framework | AppKit (TypeScript, React) | Recommended for Databricks Apps. It has built-in plugins for the warehouse, Lakebase, Genie and serving, and type generation from the SQL files |
+| Data paths | Lakebase for the plan, segments and lookups, metric views for KPIs | Segments in about 30 ms with no overnight export is the "segments go from a minute to near instant" story. KPIs from the metric views match Genie exactly |
+| Who queries run as | Lakebase and KPIs as the app's service principal, in `hearth_marketing`. Genie and live scoring as the signed-in marketer | The service principal sees exactly what marketing sees, masks included. Genie answers run with each person's own permissions. Lakebase only supports the service principal in this AppKit version |
+| What Lakebase holds | Only non-PII tables | Synced tables don't carry Unity Catalog masks, so nothing masked is synced |
+| Copy check from the app | A server route that calls the same SQL function as the daily job, never cached | The analytics plugin caches by parameters, which is wrong for an action approvals depend on. One function means one policy for generated and edited copy |
+| Controls | Per nudge per day | A pause is a decision about tomorrow, not a standing rule. The 10/29 plan started with no controls |
+| Copy-back | A daily SQL task reading through the `hearth_lakebase` catalog | Lakehouse Sync from Lakebase to Delta can only be set up in the UI. The catalog read needs no extra pipeline and runs in the same job |
+| Console schema access | `SELECT` to `PUBLIC` in the database | The simulator and the copy-back read as other identities. The tables hold reviewer emails, no member data |
+| Workspace ids | Genie space id in the gitignored `.databricks/bundle/dev/variable-overrides.json`, written by `scripts/set_bundle_overrides.py` | Keeps ids out of the public repo |
+
+**Prompts that shaped the work**
+- "Go to phase 3."
+- Answers to the data access and storage questions: "Both" and "hearth-nudges dev, new schema".

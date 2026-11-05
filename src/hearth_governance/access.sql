@@ -5,6 +5,12 @@ USE CATALOG IDENTIFIER(:catalog);
 GRANT USE CATALOG ON CATALOG IDENTIFIER(:catalog) TO `hearth_marketing`;
 GRANT USE CATALOG ON CATALOG IDENTIFIER(:catalog) TO `hearth_pii_readers`;
 
+-- The lifecycle console checks edited copy with the same governed function as the daily job. Marketing can run
+-- the check and see the brief functions, but reads no table in hearth_ml: no SELECT is granted there.
+GRANT USE SCHEMA ON SCHEMA hearth_ml TO `hearth_marketing`;
+GRANT EXECUTE ON FUNCTION hearth_ml.check_nudge_copy TO `hearth_marketing`;
+GRANT EXECUTE ON FUNCTION hearth_ml.nudge_brief TO `hearth_marketing`;
+
 -- hearth_class marks every place member PII and sensitive attributes live, raw or masked.
 ALTER TABLE hearth_bronze.members ALTER COLUMN first_name SET TAGS ('hearth_class' = 'pii');
 ALTER TABLE hearth_bronze.members ALTER COLUMN email SET TAGS ('hearth_class' = 'pii');

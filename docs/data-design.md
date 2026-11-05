@@ -155,6 +155,7 @@ The bad rows are copies of real events with the defect added, so dropping them l
 | Lakebase | `hearth_serving.next_best_action` syncs to `hearth_lakebase.hearth.next_best_action` on the `dev` branch, where the notification service reads it by `member_id` |
 | Semantic layer | Metric views in `hearth_gold`: `campaign_metrics` (returns, uplift and extra returns against the holdout, opt-outs), `reach_metrics` (reach, pushes per active member), `lapse_risk_metrics` (risk by cohort) and `nudge_plan_metrics` (the picker's plan). Each KPI is defined once |
 | Genie | The "Hearth Campaigns" agent reads the four metric views and `nudge_segment_effects`. Aggregates only, so no member-level row or PII is reachable |
+| App | `hearth-console` reads `hearth_lakebase.hearth.next_best_action` and `hearth.member_segments` (latest features of reachable members, no PII) from Lakebase, the metric views from the warehouse, and embeds the Genie agent. It writes `console.campaign_controls` (approve or pause a nudge for a day) and `console.copy_reviews` (approve or reject a message). The daily job copies both to `hearth_gold.campaign_controls` and `copy_reviews`, and the notification service honors them at send time |
 
 **Lapse label.** A member counts as lapsed on date *d* if they had a session in the 14 days up to *d* and none in the 7 days after it. Features only use data up to *d*, and the train/test split is by date so nothing from the future leaks in. The measured positive rate is 21%, in the generator check and in `hearth_gold.lapse_labels`.
 
@@ -176,6 +177,8 @@ Built 11/3. Evidence: `docs/evidence/governance.txt`.
 - Masks are declared in the pipeline's `CREATE` statement, because pipeline tables can't be altered. The functions are in `src/hearth_governance/masks.sql`. The `hearth-daily` job creates them before the pipeline runs, and applies the catalog grant and tags after it.
 - During a pipeline refresh, masks run as the pipeline owner. That's why bronze isn't masked: silver would store `***`. Gold never reads the masked columns.
 - Unity Catalog lineage traces `hearth_bronze.members` to silver and on to every gold table. It doesn't record the landing files, so each bronze row keeps `_source_file`.
+- Lakebase synced tables don't carry Unity Catalog masks, so only non-PII tables are synced: the next-best-action table and member segments. Neither has names, contact details, gender or orientation.
+- The console's service principal is in `hearth_marketing`, so its warehouse queries see what marketing sees. Genie and live scoring run as the signed-in marketer.
 - Copy prompts get nudge facts only: never names, contact details, age or sensitive attributes. Generated copy is checked for personal information and sensitive traits before it's marked ready to send (built 11/4).
 
 ## How it gets generated

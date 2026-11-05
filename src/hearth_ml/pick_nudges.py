@@ -95,7 +95,7 @@ members = spark.sql(f"""
     WHERE campaign_type <> 'blast' AND delivered AND delivered_ts < TIMESTAMP'{decided_at}' GROUP BY member_id
   )
   SELECT
-    f.member_id, f.tenure_days, f.age_band, f.market_size, f.timezone, f.pushes_7d, f.plan,
+    f.member_id, f.tenure_days, f.age_band, f.market_size, f.platform, f.timezone, f.pushes_7d, f.plan,
     (unix_timestamp(TIMESTAMP'{decided_at}') - unix_timestamp(greatest(l.ts, m.last_active_ts))) / 86400 AS days_away,
     (unix_timestamp(TIMESTAMP'{decided_at}') - unix_timestamp(n.ts)) / 3600 AS hours_since_last_nudge,
     s.lapse_risk, s.risk_band,
@@ -224,6 +224,36 @@ spark.sql(f"""
                 CASE WHEN action = 'send' THEN 'pending' END AS copy_status,
                 CAST(NULL AS TIMESTAMP) AS copy_checked_at
          FROM new_decisions) s
+  ON t.member_id = s.member_id
+  WHEN MATCHED THEN UPDATE SET *
+  WHEN NOT MATCHED THEN INSERT *
+  WHEN NOT MATCHED BY SOURCE THEN DELETE
+""")
+
+# Who each reachable member is, without PII, for segment counts and lookups in the lifecycle console.
+# Synced to Lakebase next to next_best_action. No names, contact details or sensitive attributes.
+segments = members[["member_id", "age_band", "market_size", "platform", "plan", "tenure_days", "pushes_7d",
+                    "lapse_risk", "risk_band", "preferred_hour_local", "hour_source", "timezone"]].copy()
+segments["tenure_group"] = P.tenure_group(segments["tenure_days"])
+segments["days_away"] = members["days_away"].round(2)
+segments["days_away_bucket"] = P.days_away_bucket(members["days_away"])
+segments["as_of"] = as_of
+spark.createDataFrame(segments.astype({"tenure_days": "int64", "pushes_7d": "int64", "preferred_hour_local": "int64"})) \
+    .createOrReplaceTempView("new_segments")
+spark.sql(f"""
+  CREATE TABLE IF NOT EXISTS {CATALOG}.hearth_serving.member_segments (
+    member_id STRING NOT NULL, age_band STRING, market_size STRING, platform STRING, plan STRING, tenure_days BIGINT,
+    tenure_group STRING, days_away DOUBLE, days_away_bucket STRING, pushes_7d BIGINT, lapse_risk DOUBLE, risk_band STRING,
+    preferred_hour_local BIGINT, hour_source STRING, timezone STRING, as_of DATE,
+    CONSTRAINT member_segments_pk PRIMARY KEY (member_id)
+  )
+  TBLPROPERTIES (delta.enableChangeDataFeed = true)
+  COMMENT 'Each reachable member as of the last complete day, for segments in the lifecycle console: age band, market, platform, plan, tenure, days away, recent pushes and lapse risk. No PII or sensitive attributes. Synced to Lakebase.'
+""")
+spark.sql(f"""
+  MERGE INTO {CATALOG}.hearth_serving.member_segments t
+  USING (SELECT member_id, age_band, market_size, platform, plan, tenure_days, tenure_group, days_away, days_away_bucket,
+                pushes_7d, lapse_risk, risk_band, preferred_hour_local, hour_source, timezone, as_of FROM new_segments) s
   ON t.member_id = s.member_id
   WHEN MATCHED THEN UPDATE SET *
   WHEN NOT MATCHED THEN INSERT *

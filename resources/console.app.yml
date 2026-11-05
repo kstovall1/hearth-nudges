@@ -1,0 +1,35 @@
+# The lifecycle console: a Databricks App (AppKit) in console/. Marketers review tomorrow's plan, approve or pause
+# nudges, review and edit copy, look up members and ask Genie. Reads Lakebase for the queue, segments and lookups,
+# the metric views for KPIs, and writes approvals to its own Lakebase schema, which hearth-daily copies to Delta.
+resources:
+  apps:
+    console:
+      name: hearth-console
+      description: Hearth lifecycle console
+      source_code_path: ../console
+      lifecycle:
+        started: true
+      # Genie and live scoring run as the signed-in marketer. Lakebase and KPI queries run as the app's
+      # service principal, which is in hearth_marketing and so sees what marketing sees.
+      user_api_scopes:
+        - dashboards.genie
+        - serving.serving-endpoints
+      resources:
+        - name: sql-warehouse
+          sql_warehouse:
+            id: ${var.warehouse_id}
+            permission: CAN_USE
+        - name: genie-space
+          genie_space:
+            name: Hearth Campaigns
+            space_id: ${var.genie_space_id}
+            permission: CAN_RUN
+        - name: postgres
+          postgres:
+            branch: projects/hearth-nudges/branches/dev
+            database: projects/hearth-nudges/branches/dev/databases/databricks-postgres
+            permission: CAN_CONNECT_AND_CREATE
+        - name: serving-endpoint
+          serving_endpoint:
+            name: ${resources.model_serving_endpoints.lapse_endpoint.name}
+            permission: CAN_QUERY
