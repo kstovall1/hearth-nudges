@@ -52,9 +52,9 @@ flowchart LR
 | **Lakeflow (SDP)** | Auto Loader ingests app events, notification decisions and callbacks, members and subscriptions from a UC Volume. Bronze → silver (cleaned, sessionized, funnel) → gold (member daily features, labels, nudge outcomes, campaign KPIs), with expectations for data quality |
 | **Unity Catalog** | Schemas in `katie_febar_catalog`, column masks on PII, sensitive-attribute tags, grants for a marketing group, lineage from raw files to the app |
 | **ML** | Lapse-risk model (will this member go inactive in the next 7 days), tracked in MLflow and registered in UC. Rules pick the nudge and send hour in phase 1, an uplift model in phase 2 |
-| **GenAI** | `ai_query` with Claude Haiku writes the copy. OpenJev via `ai_decide` checks it for PII, tone and policy before it can reach Lakebase. The app's live LLM calls go through the Unity AI Gateway |
+| **GenAI** | `ai_query` with Claude Haiku writes the copy. OpenJev via `ai_decide` checks it for PII, tone and policy before it can reach Lakebase. When a marketer edits copy in the app, the same SQL check runs on the warehouse. The app makes no direct LLM calls, so the Unity AI Gateway isn't used yet |
 | **Lakebase** | Synced next-best-action table (member, nudge, send hour, score, copy) that the notification service reads by member ID, plus an approvals table the app writes to. This replaces reverse ETL |
-| **Genie Agent** | Over the gold tables (metric views if time allows). "Which nudges brought back the most members last week?", "Opt-out rate by nudge type", "Lapse risk by cohort" |
+| **Genie Agent** | "Hearth Campaigns", over four metric views and the nudge test readout. "Which nudges brought back the most members last week?", "Opt-out rate by nudge type", "Lapse risk by cohort" |
 | **Databricks App** | Lifecycle console to build or pick a segment, preview the next-action queue, review and approve copy, look up a member live, and watch the KPIs |
 
 ## Where things live
@@ -105,11 +105,11 @@ Internal details (workspace URL, resource IDs, FE Bar scoring and rules, interna
 - Synced table vs writing to Lakebase directly
 
 ## Ways to reach Exceeds
-- Uplift model (phase 2)
-- Copy judge with OpenJev, plus an MLflow eval
-- Optional cost test of an open-weight model against Haiku, both scored by the judge
-- Metric views behind Genie for governed KPI definitions
-- AI/BI dashboard for campaign performance
+- Uplift model (phase 2), not started
+- Copy judge with OpenJev, plus an MLflow eval ✅ (11/4, 15 of 15 good passed, 29 of 30 bad caught)
+- Optional cost test of an open-weight model against Haiku, both scored by the judge, not started
+- Metric views behind Genie for governed KPI definitions ✅ (11/4)
+- AI/BI dashboard for campaign performance, not started
 - Strong decisions and "how I used AI" sections in the README
 
 ## Plan and status
@@ -131,7 +131,7 @@ Internal details (workspace URL, resource IDs, FE Bar scoring and rules, interna
 - [x] Pre-commit check for workspace URLs, tokens and real names
 - [x] Commit pipeline run outputs as text
 
-### Phase 2, intelligence and serving (11/3 to 11/9)
+### Phase 2, intelligence and serving ✅ (11/3 to 11/4, planned to 11/9)
 - [x] Feature table and lapse label (`hearth_gold.member_daily_features`, `lapse_labels`)
 - [x] Train, track and register the lapse model (`hearth_ml.lapse_model@champion`, version 5)
 - [x] Serving endpoint for live scoring (`hearth-lapse`), batch scoring step (`hearth_gold.member_lapse_scores`)

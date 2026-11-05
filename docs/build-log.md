@@ -354,3 +354,15 @@ How this build was made: what was decided, why, and where AI helped. This feeds 
 **Prompts that shaped the work**
 - "Go to phase 3."
 - Answers to the data access and storage questions: "Both" and "hearth-nudges dev, new schema".
+
+## 2026-11-05 · Docs check
+
+**What happened**
+- Checked the docs against what was built. The plan, data design, gotchas and evidence were current. Four things were stale and are fixed:
+  - The GenAI layer in `AGENTS.md` said the app's live LLM calls go through the Unity AI Gateway. The console makes no direct LLM calls: edited copy is checked by the same SQL function as the daily job. The 10/26 decision to route app LLM calls through the gateway stands, but nothing uses it yet.
+  - The Genie layer still said "metric views if time allows". It's built on four of them.
+  - Phase 2 wasn't marked done, and the Exceeds list didn't show what's built (copy judge eval, metric views) and what isn't (uplift model, open-weight cost test, AI/BI dashboard).
+  - `CLAUDE.local.md` hadn't changed since 10/26. It now has the app URL, Genie space, job and pipeline IDs, the Lakebase grant and its expiry, and what to clean up before the demo.
+
+**Prompts that shaped the work**
+- "Did you update the local docs with progress and everything?"
